@@ -1,0 +1,45 @@
+# nginx-pod.yaml
+
+# apiVersion specifies which version of the Kubernetes API you're using to create this object.
+# 'v1' is the core API group and is used for fundamental objects like Pods, Services, and Namespaces.
+apiVersion: v1
+
+# kind specifies what kind of object you want to create.
+# In this case, we are creating a Pod.
+kind: Pod
+
+# metadata is data that helps uniquely identify the object.
+# It includes things like the object's name, labels, and annotations.
+metadata:
+  # name provides a unique name for the Pod within its namespace.
+  # Here, we are naming our pod 'nginx-pod'.
+  name: nginx-pod
+  
+  # labels are key/value pairs that are attached to objects.
+  # They are used to organize and select subsets of objects. For example, a Service
+  # uses labels to find all the Pods it should send traffic to.
+  labels:
+    app: webserver
+
+# spec is where you define the desired state for the object.
+# For a Pod, the spec describes the containers that should run within it,
+# its storage volumes, and other runtime configurations.
+spec:
+  # containers is a list of one or more containers that should be run inside this Pod.
+  # A Pod can have multiple containers, but for this simple example, we only have one.
+  containers:
+    # This is the first (and only) container definition in our list.
+    - name: nginx-container
+      # The name of the container within the Pod. This is useful for logging and debugging.
+
+      image: nginx:1.25
+      # The Docker image to use for this container. Kubernetes will pull this image
+      # from a container registry (like Docker Hub) if it's not already on the node.
+      # It's good practice to specify a version tag (like :1.25) instead of 'latest'.
+
+      ports:
+        # ports is a list of network ports this container exposes.
+        # This is purely informational and helps other engineers understand the container's purpose.
+        # It does NOT actually publish the port on the node's network.
+        - containerPort: 80
+          # This specifies that the nginx-container is listening on port 80.

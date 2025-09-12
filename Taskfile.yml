@@ -113,6 +113,48 @@ tasks:
       - sh: '(kind get clusters | grep -q "^kind$")'
         msg: "No Kind cluster named 'kind' was found."
 
+# --- Kubernetes Resource Management ---
+  apply-nginx-pod:
+    desc: "Applies the nginx-pod.yaml manifest to create the pod."
+    cmds:
+      - kubectl apply -f nginx-pod.yaml
+
+  delete-nginx-pod:
+    desc: "Deletes the nginx-pod using the manifest file."
+    cmds:
+      - kubectl delete -f nginx-pod.yaml
+
+  get-pods:
+    desc: "Lists all pods in the current namespace with extra details."
+    cmds:
+      - kubectl get pods -o wide
+
+  get-replicasets:
+    desc: "Lists all ReplicaSets in the current namespace."
+    cmds:
+      - kubectl get replicasets
+
+  get-deployments:
+    desc: "Lists all Deployments in the current namespace."
+    cmds:
+      - kubectl get deployments
+
+  get-all:
+    desc: "A convenience command to see the most common running resources."
+    cmds:
+      - kubectl get deployments,replicasets,pods,svc
+
+  describe-pod:
+    desc: "Shows detailed information about the nginx-pod."
+    cmds:
+      - kubectl describe pod nginx-pod
+
+  logs-pod:
+    desc: "Streams the logs from the nginx-pod."
+    cmds:
+      # The '-f' flag follows the log stream, similar to 'tail -f'
+      - kubectl logs -f nginx-pod
+  
   default:
     desc: "Shows usage information."
     silent: true
@@ -120,10 +162,20 @@ tasks:
       - |
         echo "Usage: task [command]"
         echo ""
-        echo "Commands:"
+        echo "Cluster Management:"
         echo "  setup-kube:      Installs the specified container engine, Kind, and kubectl."
         echo "  cluster-up:      Creates a Kind cluster using the local config file."
         echo "  cluster-down:    Deletes the local Kind cluster."
+        echo ""
+        echo "Kubernetes Commands:"
+        echo "  apply-nginx-pod: Creates the simple Nginx pod."
+        echo "  delete-nginx-pod: Deletes the Nginx pod."
+        echo "  get-pods:        Lists all pods."
+        echo "  get-replicasets: Lists all ReplicaSets."
+        echo "  get-deployments: Lists all Deployments."
+        echo "  get-all:         Lists the most common resources (Deployments, Pods, Services)."
+        echo "  describe-pod:    Shows detailed information about the Nginx pod."
+        echo "  logs-pod:        Streams the logs from the Nginx pod."
         echo ""
         echo "Individual Installers:"
         echo "  install-docker:  Installs Docker."
