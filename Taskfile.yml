@@ -1,0 +1,96 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  CONTAINER_ENGINE: docker # Can be set to 'podman' as well
+
+tasks:
+  install-docker:
+    desc: "Installs Docker using the official Docker repository."
+    cmds:
+      - |
+        echo "Installing Docker..."
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl
+        sudo install -m 0755 -d /etc/apt/keyrings
+        sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        echo "Docker installed successfully."
+        docker --version
+    preconditions:
+      - sh: '[ "{{.CONTAINER_ENGINE}}" = "docker" ]'
+        msg: "CONTAINER_ENGINE is not set to docker."
+      - sh: "! command -v docker"
+        msg: "Docker is already installed."
+
+  install-podman:
+    desc: "Installs Podman from the default Ubuntu repositories."
+    cmds:
+      - |
+        echo "Installing Podman..."
+        sudo apt-get update
+        sudo apt-get install -y podman
+        echo "Podman installed successfully."
+        podman --version
+    preconditions:
+      - sh: '[ "{{.CONTAINER_ENGINE}}" = "podman" ]'
+        msg: "CONTAINER_ENGINE is not set to podman."
+      - sh: "! command -v podman"
+        msg: "Podman is already installed."
+
+  install-kind:
+    desc: "Installs Kind (Kubernetes in Docker)."
+    cmds:
+      - |
+        echo "Installing Kind..."
+        curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v0.20.0/kind-$(uname)-amd64"
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+        echo "Kind installed successfully."
+        kind --version
+    preconditions:
+      - sh: "! command -v kind"
+        msg: "Kind is already installed."
+
+  install-kubectl:
+    desc: "Installs kubectl, the Kubernetes command-line tool."
+    cmds:
+      - |
+        echo "Installing kubectl..."
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        rm kubectl
+        echo "kubectl installed successfully."
+        kubectl version --client
+    preconditions:
+      - sh: "! command -v kubectl"
+        msg: "kubectl is already installed."
+
+  setup-kube:
+    desc: "Sets up the complete Kubernetes environment based on the specified CONTAINER_ENGINE."
+    deps:
+      - task: install-{{.CONTAINER_ENGINE}}
+      - task: install-kind
+      - task: install-kubectl
+    cmds:
+      - echo "Kubernetes setup complete with {{.CONTAINER_ENGINE}}, Kind, and kubectl."
+
+  default:
+    desc: "Shows usage information."
+    silent: true
+    cmds:
+      - |
+        echo "Usage: task [command]"
+        echo "Commands:"
+        echo "  install-docker:  Installs Docker."
+        echo "  install-podman:  Installs Podman."
+        echo "  install-kind:    Installs Kind."
+        echo "  install-kubectl: Installs kubectl."
+        echo "  setup-kube:      Installs the specified container engine, Kind, and kubectl."
