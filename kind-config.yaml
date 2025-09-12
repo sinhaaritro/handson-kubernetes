@@ -1,0 +1,40 @@
+# kind-config.yaml
+
+# This specifies the API version for the Kind configuration.
+# It's important to ensure this matches the version of Kind you are using.
+# 'v1alpha4' is a stable and widely used version.
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# This defines the type of configuration object, which in this case is a 'Cluster'.
+kind: Cluster
+
+# The 'nodes' section is a list where you define all the nodes for your cluster.
+# For a simple learning environment, a single-node cluster is often sufficient.
+nodes:
+  # This is the first (and in this case, only) node in the list.
+  - role: control-plane
+    # The 'role' specifies the function of the node.
+    # 'control-plane' means this node will run the main Kubernetes components
+    # (like the API server, scheduler, and controller manager).
+    # Because it's the only node, it will also run your workloads (pods, deployments).
+
+    # 'extraPortMappings' is one of the most useful features for local development.
+    # It allows you to forward traffic from a port on your host machine (your computer)
+    # to a port on the Kubernetes node running inside the container.
+    extraPortMappings:
+      # This mapping forwards traffic from port 80 on your host to port 80 on the node.
+      # This is essential for accessing services like an Ingress controller over standard HTTP.
+      - containerPort: 80 # The port inside the Kind node (container).
+        hostPort: 80      # The port on your local machine (localhost:80).
+        protocol: TCP     # The network protocol to use (usually TCP for HTTP/S).
+
+      # This mapping does the same for port 443, used for HTTPS traffic.
+      - containerPort: 443 # The HTTPS port inside the Kind node.
+        hostPort: 443      # The HTTPS port on your local machine (localhost:443).
+        protocol: TCP
+
+  # This is our second node, a dedicated worker.
+  # - role: worker
+
+  # This is our third node, another dedicated worker.
+  # - role: worker

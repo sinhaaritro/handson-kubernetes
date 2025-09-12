@@ -4,6 +4,7 @@ version: '3'
 
 vars:
   CONTAINER_ENGINE: docker # Can be set to 'podman' as well
+  KIND_CONFIG: ./kind-config.yaml
 
 tasks:
   install-docker:
@@ -24,6 +25,18 @@ tasks:
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         echo "Docker installed successfully."
         docker --version
+
+        echo "Adding current user (${USER}) to the 'docker' group to avoid permission errors..."
+        sudo usermod -aG docker ${USER}
+        
+        echo ""
+        echo "#########################################################################################"
+        echo "#"
+        echo "#  ACTION REQUIRED: For group changes to apply, you must either:"
+        echo "#  1. Log out and log back in."
+        echo "#  2. Or run the command: newgrp docker"
+        echo "#"
+        echo "#########################################################################################"
     preconditions:
       - sh: '[ "{{.CONTAINER_ENGINE}}" = "docker" ]'
         msg: "CONTAINER_ENGINE is not set to docker."
@@ -82,15 +95,38 @@ tasks:
     cmds:
       - echo "Kubernetes setup complete with {{.CONTAINER_ENGINE}}, Kind, and kubectl."
 
+  cluster-up:
+    desc: "Creates a Kind cluster using the local kind-config.yaml file."
+    cmds:
+      - kind create cluster --config {{.KIND_CONFIG}}
+    preconditions:
+      - sh: '[ -f {{.KIND_CONFIG}} ]'
+        msg: "The Kind config file is missing. Please ensure '{{.KIND_CONFIG}}' exists."
+      - sh: '!(kind get clusters | grep -q "^kind$")'
+        msg: "A Kind cluster named 'kind' already exists. Use 'task cluster-down' to delete it first."
+
+  cluster-down:
+    desc: "Deletes the local Kind cluster."
+    cmds:
+      - kind delete cluster
+    preconditions:
+      - sh: '(kind get clusters | grep -q "^kind$")'
+        msg: "No Kind cluster named 'kind' was found."
+
   default:
     desc: "Shows usage information."
     silent: true
     cmds:
       - |
         echo "Usage: task [command]"
+        echo ""
         echo "Commands:"
+        echo "  setup-kube:      Installs the specified container engine, Kind, and kubectl."
+        echo "  cluster-up:      Creates a Kind cluster using the local config file."
+        echo "  cluster-down:    Deletes the local Kind cluster."
+        echo ""
+        echo "Individual Installers:"
         echo "  install-docker:  Installs Docker."
         echo "  install-podman:  Installs Podman."
         echo "  install-kind:    Installs Kind."
         echo "  install-kubectl: Installs kubectl."
-        echo "  setup-kube:      Installs the specified container engine, Kind, and kubectl."
