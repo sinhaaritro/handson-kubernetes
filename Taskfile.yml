@@ -95,6 +95,7 @@ tasks:
     cmds:
       - echo "Kubernetes setup complete with {{.CONTAINER_ENGINE}}, Kind, and kubectl."
 
+  # --- Kind Cluster Management ---
   cluster-up:
     desc: "Creates a Kind cluster using the local kind-config.yaml file."
     cmds:
@@ -139,22 +140,133 @@ tasks:
     cmds:
       - kubectl get deployments
 
-  get-all:
-    desc: "A convenience command to see the most common running resources."
-    cmds:
-      - kubectl get deployments,replicasets,pods,svc
-
   describe-pod:
     desc: "Shows detailed information about the nginx-pod."
     cmds:
       - kubectl describe pod nginx-pod
+
+  # describe-pod:
+  #   desc: "Shows detailed information about the first deployment pod."
+  #   cmds:
+  #     - |
+  #       POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+  #       if [ -z "$POD_NAME" ]; then echo "No pod found."; exit 1; fi
+  #       echo "Describing pod: $POD_NAME"
+  #       kubectl describe pod $POD_NAME
 
   logs-pod:
     desc: "Streams the logs from the nginx-pod."
     cmds:
       # The '-f' flag follows the log stream, similar to 'tail -f'
       - kubectl logs -f nginx-pod
-  
+
+  # logs-pod:
+  #   desc: "Streams logs from the first deployment pod."
+  #   cmds:
+  #     - |
+  #       POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+  #       if [ -z "$POD_NAME" ]; then echo "No pod found."; exit 1; fi
+  #       echo "Streaming logs from pod: $POD_NAME"
+  #       kubectl logs -f $POD_NAME
+
+  # --- Application Lifecycle (The Nginx Part) ---
+  apply-nginx-deployment:
+    desc: "Applies the nginx-deployment.yaml to create or update the app."
+    cmds:
+      - kubectl apply -f nginx-deployment.yaml
+
+  delete-nginx-deployment:
+    desc: "Deletes the nginx-deployment and all its resources."
+    cmds:
+      - kubectl delete -f nginx-deployment.yaml
+
+  update-deployment-image:
+    desc: "Performs a rolling update of the Nginx deployment to version 1.26."
+    cmds:
+      - kubectl set image deployment/nginx-deployment nginx=nginx:1.26
+      - echo "Run 'task rollout-status' or 'kubectl get pods -w' to watch the update."
+
+  scale-deployment:
+    desc: "Scales the Nginx deployment to 5 replicas."
+    cmds:
+      - kubectl scale deployment nginx-deployment --replicas=5
+
+  rollout-status:
+    desc: "Watches the status of the nginx-deployment rollout until it's complete."
+    cmds:
+      - kubectl rollout status deployment/nginx-deployment
+
+  check-rollout-history:
+    desc: "Checks the revision history of the deployment."
+    cmds:
+      - kubectl rollout history deployment/nginx-deployment
+
+  undo-rollout:
+    desc: "Rolls back the deployment to the previous version."
+    cmds:
+      - kubectl rollout undo deployment/nginx-deployment
+
+  # --- Diagnostics and Interaction ---
+  get-all:
+    desc: "A convenience command to see the most common running resources."
+    cmds:
+      - kubectl get deployments,replicasets,pods,svc
+
+  recreate-pod:
+    desc: "Deletes the first running deployment pod to demonstrate self-healing."
+    cmds:
+      - kubectl delete pod -l app=webserver-deploy
+
+  check-nginx-version:
+    desc: "Checks the running Nginx version inside the first deployment pod."
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD_NAME" ]; then
+          echo "No pod found with label app=webserver-deploy. Did you run 'task apply-nginx-deployment'?"
+          exit 1
+        fi
+        echo "Checking Nginx version in pod: $POD_NAME"
+        kubectl exec $POD_NAME -- nginx -v
+
+  forward-nginx-pod:
+    desc: "Forwards localhost:8080 to a deployment pod. Requires a second terminal."
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD_NAME" ]; then
+          echo "No pod found with label app=webserver-deploy. Did you run 'task apply-nginx-deployment'?"
+          exit 1
+        fi
+        echo "Forwarding http://localhost:8080 -> pod/$POD_NAME:80. Press Ctrl+C to stop."
+        kubectl port-forward pod/$POD_NAME 8080:80
+
+  get-events:
+    desc: "Shows a sorted list of all events in the namespace."
+    cmds:
+      - kubectl get events --sort-by='.metadata.creationTimestamp'
+
+  # --- Cluster Metrics (Requires Metrics Server) ---
+  install-metrics-server:
+    desc: "Installs the Metrics Server to enable resource usage commands (e.g., top)."
+    cmds:
+      - kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+      - echo "Waiting for Metrics Server to be ready before patching..."
+      - kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=120s
+      - kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'      - echo "Metrics Server installed. It may take a minute for metrics to become available."
+
+  top-pods:
+    desc: "Shows CPU and Memory usage for all running pods (requires Metrics Server)."
+    cmds:
+      - kubectl top pods
+
+  top-nodes:
+    desc: "Shows CPU and Memory usage for all cluster nodes (requires Metrics Server)."
+    cmds:
+      - kubectl top nodes
+
+
+
   default:
     desc: "Shows usage information."
     silent: true
@@ -163,22 +275,45 @@ tasks:
         echo "Usage: task [command]"
         echo ""
         echo "Cluster Management:"
-        echo "  setup-kube:      Installs the specified container engine, Kind, and kubectl."
-        echo "  cluster-up:      Creates a Kind cluster using the local config file."
-        echo "  cluster-down:    Deletes the local Kind cluster."
+        echo "  setup-kube:           Installs the specified container engine, Kind, and kubectl."
+        echo "  cluster-up:           Creates a Kind cluster using the local config file."
+        echo "  cluster-down:         Deletes the local Kind cluster."
+        echo "  install-metrics-server: Installs the Metrics Server for 'top' commands."
         echo ""
         echo "Kubernetes Commands:"
-        echo "  apply-nginx-pod: Creates the simple Nginx pod."
-        echo "  delete-nginx-pod: Deletes the Nginx pod."
-        echo "  get-pods:        Lists all pods."
-        echo "  get-replicasets: Lists all ReplicaSets."
-        echo "  get-deployments: Lists all Deployments."
-        echo "  get-all:         Lists the most common resources (Deployments, Pods, Services)."
-        echo "  describe-pod:    Shows detailed information about the Nginx pod."
-        echo "  logs-pod:        Streams the logs from the Nginx pod."
+        echo "  apply-nginx-pod:      Creates the simple Nginx pod."
+        echo "  delete-nginx-pod:     Deletes the Nginx pod."
+        echo "  recreate-pod:         Deletes a pod to see the controller recreate it."
+        echo "  forward-nginx-pod:    Forward a local port to the Nginx pod."
+        echo "  get-pods:             Lists all pods."
+        echo "  get-replicasets:      Lists all ReplicaSets."
+        echo "  get-deployments:      Lists all Deployments."
+        echo "  get-all:              Lists the most common resources (Deployments, Pods, Services)."
+        echo "  describe-pod:         Shows detailed information about the Nginx pod."
+        echo "  logs-pod:             Streams the logs from the Nginx pod."
+        echo ""
+        echo "Application Lifecycle (Nginx Deployment):"
+        echo "  apply-nginx-deployment:   Creates or updates the Nginx deployment."
+        echo "  delete-nginx-deployment:  Deletes the Nginx deployment."
+        echo "  update-deployment-image:  Performs a rolling update to a new Nginx version."
+        echo "  scale-deployment:         Scales the deployment to 5 replicas."
+        echo "  rollout-status:           Watches the live status of a deployment rollout."
+        echo "  check-rollout-history:    Checks the revision history of the deployment."
+        echo "  undo-rollout:             Rolls back the deployment to the previous version."
+        echo ""
+        echo "Diagnostics and Interaction:"
+        echo "  get-all:                  Lists the most common resources (Deployments, Pods, Services)."
+        echo "  recreate-pod:             Deletes a pod to see the controller recreate it."
+        echo "  check-nginx-version:      Checks the running Nginx version in a pod."
+        echo "  forward-pod:              Forwards a local port to a pod."
+        echo "  logs-pod:                 Streams logs from a pod."
+        echo "  describe-pod:             Shows detailed information about a pod."
+        echo "  get-events:               Shows a sorted list of cluster events."
+        echo "  top-pods:                 Shows CPU/Memory usage for pods."
+        echo "  top-nodes:                Shows CPU/Memory usage for nodes."
         echo ""
         echo "Individual Installers:"
-        echo "  install-docker:  Installs Docker."
-        echo "  install-podman:  Installs Podman."
-        echo "  install-kind:    Installs Kind."
-        echo "  install-kubectl: Installs kubectl."
+        echo "  install-docker:       Installs Docker."
+        echo "  install-podman:       Installs Podman."
+        echo "  install-kind:         Installs Kind."
+        echo "  install-kubectl:      Installs kubectl."

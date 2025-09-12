@@ -1,0 +1,78 @@
+# nginx-deployment.yaml
+
+# apiVersion for Deployment is also 'apps/v1'.
+apiVersion: apps/v1
+# kind specifies we are creating a Deployment. This is the object you will
+# interact with most often for your applications.
+kind: Deployment
+metadata:
+  # The name of our Deployment.
+  name: nginx-deployment
+spec:
+  # replicas defines the desired state: we want 3 Pods running.
+  # This field is controlled by the Deployment.
+  replicas: 3
+
+  # --- The Rollout Strategy ---
+  # This block gives us detailed control over the update process.
+  strategy:
+    # We specify the type as 'RollingUpdate'. This is the default, but we're
+    # defining it explicitly so we can configure its parameters.
+    type: RollingUpdate
+    rollingUpdate:
+      # maxUnavailable tells Kubernetes the maximum number of Pods that can be
+      # unavailable during the update.
+      # Setting it to 1 means that if our desired state is 3 replicas, at least 2
+      # replicas must always be healthy and available to serve traffic.
+      # Kubernetes will not take down an old Pod until a new one is ready.
+      maxUnavailable: 1
+
+      # maxSurge tells Kubernetes the maximum number of Pods it can create *above*
+      # the desired number of replicas.
+      # Setting it to 1 means that during the update, we can have a maximum of
+      # (3 replicas + 1 surge) = 4 Pods running temporarily.
+      # This allows Kubernetes to create a new Pod without having to terminate an
+      # old one first, which speeds up the process.
+      maxSurge: 1
+
+  # --- This is the setting that adds the delay ---
+  # minReadySeconds specifies how long a newly created Pod must be in a 'Ready'
+  # state (without any of its containers crashing) before it is considered "available".
+  # We will set this to 10 seconds. This means after a new pod starts, the Deployment
+  # will wait for 10 full seconds before continuing the rollout (i.e., killing an old pod).
+  minReadySeconds: 10
+
+
+  # selector tells the Deployment which Pods to manage. The Deployment uses this
+  # to link to its underlying ReplicaSet and Pods.
+  selector:
+    matchLabels:
+      # This label is distinct from the ReplicaSet to avoid conflicts.
+      app: webserver-deploy
+
+  # The template is the blueprint for the Pods. The Deployment creates a
+  # ReplicaSet, and the ReplicaSet uses this template to create the Pods.
+  template:
+    metadata:
+      # The Pods created will have this label, matching the selector above.
+      labels:
+        app: webserver-deploy
+    spec:
+      # The container configuration.
+      containers:
+      - name: nginx
+        # We are starting with the SAME OLDER version of Nginx.
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+
+# --- HOW DEPLOYMENTS WORK ---
+# When you apply this file, the Deployment controller does the following:
+# 1. Creates a ReplicaSet based on the template (e.g., nginx-deployment-xyz).
+# 2. The ReplicaSet then creates 3 Pods based on the template.
+#
+# WHEN YOU UPDATE THE IMAGE to 1.26 using 'task update-deployment-image':
+# 1. The Deployment creates a NEW ReplicaSet with the updated template (nginx:1.26).
+# 2. It slowly scales UP the new ReplicaSet (to 1, then 2, then 3 Pods).
+# 3. Simultaneously, it slowly scales DOWN the old ReplicaSet (to 2, then 1, then 0 Pods).
+# This is the "rolling update" that ensures zero downtime.

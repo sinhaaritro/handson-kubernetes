@@ -1,0 +1,46 @@
+# nginx-replicaset.yaml
+
+# apiVersion for ReplicaSet is 'apps/v1'.
+apiVersion: apps/v1
+# kind specifies that we are creating a ReplicaSet.
+kind: ReplicaSet
+metadata:
+  # The name of our ReplicaSet.
+  name: nginx-replicaset
+spec:
+  # replicas defines the desired number of Pods. The ReplicaSet's main job
+  # is to ensure this many Pods are always running.
+  replicas: 2
+
+  # selector is how the ReplicaSet knows which Pods to manage.
+  # It constantly scans for Pods that have labels matching this selector.
+  # If it finds fewer than the desired 'replicas', it creates more.
+  selector:
+    matchLabels:
+      # This key-value pair must exactly match the labels in the Pod template below.
+      app: webserver-rs
+
+  # template is the blueprint for the Pods that the ReplicaSet will create.
+  # It's a complete Pod specification, nested inside the ReplicaSet spec.
+  template:
+    metadata:
+      # labels are applied to each Pod created from this template.
+      # This is how the selector finds them.
+      labels:
+        app: webserver-rs
+    spec:
+      # The container configuration for the Pods.
+      containers:
+      - name: nginx
+        # We are intentionally using an OLDER version of Nginx.
+        # This will allow us to see an update in action when using a Deployment.
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+
+# --- WHY YOU DON'T USE THIS IN PRODUCTION ---
+# A ReplicaSet is great at keeping a specific number of Pods running.
+# However, it has no built-in strategy for performing updates. If you wanted to
+# update the image from 1.24 to 1.25, you would have to manually delete this
+# ReplicaSet and create a new one, which would cause downtime.
+# This is the problem that Deployments solve.
