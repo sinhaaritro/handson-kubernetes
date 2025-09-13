@@ -1,0 +1,9 @@
+{
+    "yaml.schemas": {
+        "https://taskfile.dev/schema.json": [
+            "file:///home/dev/handson-kubernetes/tasks/01-setup.yml",
+            "file:///home/dev/handson-kubernetes/tasks/02-pods.yml",
+            "file:///home/dev/handson-kubernetes/tasks/03-deployments.yml"
+        ]
+    }
+}

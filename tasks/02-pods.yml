@@ -1,0 +1,57 @@
+# tasks/02-pods.yml
+# Contains tasks for interacting with a standalone Pod.
+
+version: "3"
+
+tasks:
+  apply-nginx-pod:
+    desc: "Applies the nginx-pod.yaml manifest to create a standalone pod."
+    cmds:
+      - kubectl apply -f nginx-pod.yaml
+
+  delete-nginx-pod:
+    desc: "Deletes the standalone nginx-pod using the manifest file."
+    cmds:
+      - kubectl delete -f nginx-pod.yaml
+
+  # --- Core Diagnostic Commands (Learn these first!) ---
+  get-pods:
+    desc: "Lists all pods in the current namespace with extra details."
+    cmds:
+      - kubectl get pods -o wide
+
+  get-all:
+    desc: "A convenience command to see the most common running resources."
+    cmds:
+      - kubectl get deployments,replicasets,pods,svc
+
+  get-events:
+    desc: "Shows a sorted list of all events in the namespace."
+    cmds:
+      - kubectl get events --sort-by='.metadata.creationTimestamp'
+
+  describe-pod-standalone:
+    desc: "Shows detailed information about the standalone nginx-pod."
+    cmds:
+      - kubectl describe pod nginx-pod
+
+  logs-pod-standalone:
+    desc: "Streams the logs from the standalone nginx-pod."
+    cmds:
+      - kubectl logs -f nginx-pod
+
+  exec-pod-shell:
+    desc: "Opens an interactive shell inside the standalone nginx-pod."
+    cmds:
+      - echo "Opening a shell in 'nginx-pod'. Type 'exit' to return."
+      - kubectl exec -it nginx-pod -- /bin/bash
+
+  top-pods:
+    desc: "Shows CPU and Memory usage for all running pods. Metrics API needed."
+    cmds:
+      - kubectl top pods
+
+  top-nodes:
+    desc: "Shows CPU and Memory usage for all cluster nodes. Metrics API needed."
+    cmds:
+      - kubectl top nodes

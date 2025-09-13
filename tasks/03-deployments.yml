@@ -1,0 +1,123 @@
+# tasks/03-deployments.yml
+# Contains all tasks for managing the application lifecycle with Deployments.
+
+version: "3"
+
+tasks:
+  apply-nginx-deployment:
+    desc: "Applies the nginx-deployment.yaml to create or update the app."
+    cmds:
+      - kubectl apply -f nginx-deployment.yaml
+
+  delete-nginx-deployment:
+    desc: "Deletes the nginx-deployment and all its resources."
+    cmds:
+      - kubectl delete -f nginx-deployment.yaml
+
+  get-replicasets:
+    desc: "Lists all ReplicaSets in the current namespace."
+    cmds:
+      - kubectl get replicasets
+
+  get-deployments:
+    desc: "Lists all Deployments in the current namespace."
+    cmds:
+      - kubectl get deployments
+
+  # --- Application Lifecycle Commands ---
+
+  update-deployment-image:
+    desc: "Performs a rolling update of the Nginx deployment to version 1.26."
+    cmds:
+      - kubectl set image deployment/nginx-deployment nginx=nginx:1.26
+      - echo "Run 'task rollout-status' or 'kubectl get pods -w' to watch the update."
+
+  scale-deployment:
+    desc: "Scales the Nginx deployment to 5 replicas."
+    cmds:
+      - kubectl scale deployment nginx-deployment --replicas=5
+
+  rollout-status:
+    desc: "Watches the status of the nginx-deployment rollout until it's complete."
+    cmds:
+      - kubectl rollout status deployment/nginx-deployment
+
+  check-rollout-history:
+    desc: "Checks the revision history of the deployment."
+    cmds:
+      - kubectl rollout history deployment/nginx-deployment
+
+  undo-rollout:
+    desc: "Rolls back the deployment to the previous version."
+    cmds:
+      - kubectl rollout undo deployment/nginx-deployment
+
+  # --- Diagnostics for Managed Pods ---
+
+  recreate-pod:
+    desc: "Deletes a single running pod to demonstrate self-healing with a label (app=webserver-deploy)."
+    cmds:
+      - |
+        # First, find the full name of the first pod matching the label.
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        # Check if we actually found a pod.
+        if [ -z "$POD_NAME" ]; then
+          echo "No pod found to delete. Is the deployment running?"
+          exit 1
+        fi
+        # Now, delete that specific pod by its full name.
+        echo "Deleting pod '$POD_NAME' to demonstrate self-healing..."
+        kubectl delete pod $POD_NAME
+        echo "Run 'kubectl get pods -w' to watch a new pod get created."
+
+  recreate-pod-all:
+    desc: "Deletes all running deployment pod with a label (app=webserver-deploy) to demonstrate self-healing."
+    cmds:
+      - kubectl delete pod -l app=webserver-deploy
+
+  check-nginx-version:
+    desc: "Checks the running Nginx version inside the first deployment pod with a label (app=webserver-deploy)."
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD_NAME" ]; then 
+          echo "No pod found with label app=webserver-deploy."
+          exit 1;
+        fi
+        echo "Checking Nginx version in pod: $POD_NAME"
+        kubectl exec $POD_NAME -- nginx -v
+
+  forward-pod:
+    desc: "Forwards localhost:8080 to a deployment pod with a label (app=webserver-deploy). Requires a second terminal."
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD_NAME" ]; then 
+          echo "No pod found with label app=webserver-deploy."
+          exit 1
+        fi
+        echo "Forwarding http://localhost:8080 -> pod/$POD_NAME:80. Press Ctrl+C to stop."
+        kubectl port-forward pod/$POD_NAME 8080:80
+
+  logs-pod:
+    desc: "Streams logs from the first deployment pod with a label (app=webserver-deploy)."
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD_NAME" ]; then echo "No pod found."; exit 1; fi
+        echo "Streaming logs from pod: $POD_NAME"
+        kubectl logs -f $POD_NAME
+
+  describe-pod:
+    desc: "Shows detailed information about the first deployment pod with a label (app=webserver-deploy)."
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l app=webserver-deploy -o jsonpath='{.items[0].metadata.name}')
+        if [ -z "$POD_NAME" ]; then echo "No pod found."; exit 1; fi
+        echo "Describing pod: $POD_NAME"
+        kubectl describe pod $POD_NAME
+
+  get-events:
+    desc: "Shows a sorted list of all events in the namespace."
+    cmds:
+      - kubectl get events --sort-by='.metadata.creationTimestamp'
