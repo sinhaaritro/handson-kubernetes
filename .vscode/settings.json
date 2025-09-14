@@ -5,7 +5,8 @@
             "file:///home/dev/handson-kubernetes/tasks/02-pods.yml",
             "file:///home/dev/handson-kubernetes/tasks/03-deployments.yml",
             "file:///home/dev/handson-kubernetes/tasks/04-configmaps.yml",
-            "file:///home/dev/handson-kubernetes/tasks/05-secrets.yml"
+            "file:///home/dev/handson-kubernetes/tasks/05-secrets.yml",
+            "file:///home/dev/handson-kubernetes/tasks/06-volumes.yml"
         ]
     }
 }

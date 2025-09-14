@@ -1,0 +1,24 @@
+# persistent-volume-claim.yaml
+#
+# --- GOAL: The Developer's Resource (The Request) ---
+# A PersistentVolumeClaim (PVC) is a request for storage by a user.
+# Kubernetes will try to match this request with an available PersistentVolume.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # A unique name for our claim. The Pod will reference this name.
+  name: my-pvc
+spec:
+  # 'accessModes' must match one of the modes supported by the PV.
+  # This claim is asking for a volume that can be mounted as read-write by one node.
+  accessModes:
+    - ReadWriteOnce
+  # 'resources.requests' specifies how much storage we need.
+  # This request must be less than or equal to the capacity of the PV.
+  resources:
+    requests:
+      storage: 500Mi # 500 Mebibytes
+  # By leaving 'storageClassName' empty, we are telling Kubernetes that we
+  # want to bind to a manually created PV, not use a dynamic provisioner.
+  storageClassName: ""

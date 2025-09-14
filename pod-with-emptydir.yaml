@@ -1,0 +1,69 @@
+# pod-with-emptydir.yaml
+#
+# --- GOAL ---
+# This manifest demonstrates an 'emptyDir' volume.
+# An 'emptyDir' is a temporary directory created when a Pod starts and is destroyed
+# when the Pod is deleted. Its primary purpose is to share files between containers
+# running in the same Pod.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  # A unique and easily recognizable name for our pod.
+  name: pod-with-emptydir
+spec:
+  # The 'volumes' section defines all volumes available to this Pod.
+  volumes:
+    # We define a volume and give it the nickname 'shared-volume'.
+    - name: shared-volume
+      # We specify its type is 'emptyDir'. '{}' means we use the defaults.
+      emptyDir: {}
+
+  # The 'containers' section is a list of all containers to run in this Pod.
+  containers:
+    # --- Container 1: The "Writer" ---
+    - name: writer-container
+      image: alpine:latest
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # This command runs an infinite loop that appends the current date
+      # to a log file inside the '/data' directory every 5 seconds.
+      command:
+        ["/bin/sh", "-c", "while true; do date >> /data/log.txt; sleep 5; done"]
+      # We mount the volume nicknamed 'shared-volume' into this container.
+      volumeMounts:
+        - name: shared-volume
+          # It will appear inside this container at the path '/data'.
+          mountPath: /data
+
+    # --- Container 2: The "Reader" ---
+    - name: reader-container
+      image: alpine:latest
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # This command uses 'tail -f' to continuously watch and print the
+      # content of the log file as it's written by the other container.
+      command: ["/bin/sh", "-c", "tail -f /data/log.txt"]
+      # We mount the SAME volume nicknamed 'shared-volume' into this container.
+      volumeMounts:
+        - name: shared-volume
+          # It will also appear inside this container at the path '/data'.
+          mountPath: /data

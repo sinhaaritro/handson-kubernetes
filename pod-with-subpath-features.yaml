@@ -1,0 +1,52 @@
+# pod-with-subpath-features.yaml
+#
+# --- GOAL ---
+# This Pod demonstrates two key features of 'subPath':
+# 1. Mounting a single file from a volume into a container.
+# 2. Mounting a complete subdirectory from a volume into a container.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-subpath-features
+spec:
+  # --- 1. Define the Source Volume ---
+  # This volume points to the directory on the Kind node that we will create.
+  volumes:
+    - name: host-source-volume
+      hostPath:
+        path: /tmp/subpath-source
+        type: DirectoryOrCreate
+
+  containers:
+    - name: subpath-container
+      image: alpine:latest
+      command: ["sleep", "3600"]
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # --- 2. Mount Parts of the Volume ---
+      volumeMounts:
+        # --- Mount 1: The Single File ---
+        - name: host-source-volume
+          # We mount the file directly to '/mounts/the-single-file.txt'.
+          mountPath: /mounts/the-single-file.txt
+          # 'subPath' specifies to mount ONLY the 'SUBPATH_FILE.txt' item
+          # from the 'host-source-volume'.
+          subPath: SUBPATH_FILE.txt
+
+        # --- Mount 2: The Full Folder ---
+        - name: host-source-volume
+          # We mount the folder to the '/mounts/the-folder' directory.
+          mountPath: /mounts/the-folder
+          # 'subPath' specifies to mount ONLY the 'SUBPATH_FOLDER' item
+          # from the 'host-source-volume'.
+          subPath: SUBPATH_FOLDER

@@ -1,0 +1,31 @@
+# persistent-volume.yaml
+#
+# --- GOAL: The Administrator's Resource (The Storage) ---
+# A PersistentVolume (PV) is a piece of storage in the cluster that has been
+# provisioned by an administrator. It is a cluster resource, just like a Node.
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  # A unique name for our PersistentVolume.
+  name: my-persistent-volume
+spec:
+  # 'capacity' defines the size of the storage.
+  capacity:
+    storage: 1Gi # 1 Gibibyte
+  # 'volumeMode' specifies how the volume should be formatted. 'Filesystem' is the default.
+  volumeMode: Filesystem
+  # 'accessModes' define how the volume can be mounted.
+  # - ReadWriteOnce: Can be mounted as read-write by a single Node.
+  # - ReadOnlyMany: Can be mounted as read-only by many Nodes.
+  # - ReadWriteMany: Can be mounted as read-write by many Nodes.
+  accessModes:
+    - ReadWriteOnce
+  # 'persistentVolumeReclaimPolicy' tells Kubernetes what to do with the volume
+  # after the claim is released. 'Retain' means the data will be kept.
+  persistentVolumeReclaimPolicy: Retain
+  # --- The Storage Backend ---
+  # For our Kind cluster, we use 'hostPath' to simulate a real storage volume.
+  # In a cloud environment, this would be an 'awsElasticBlockStore', 'gcePersistentDisk', etc.
+  hostPath:
+    path: /tmp/pv-data # This directory will be created on the Kind Node.

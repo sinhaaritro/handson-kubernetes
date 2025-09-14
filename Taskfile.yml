@@ -22,6 +22,9 @@ includes:
   05-secret:
     taskfile: ./tasks/05-secrets.yml
     dir: ./tasks
+  06-volume:
+    taskfile: ./tasks/06-volumes.yml
+    dir: ./tasks
 
 tasks:
   default:

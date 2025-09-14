@@ -1,0 +1,39 @@
+# pod-with-pvc.yaml
+#
+# --- GOAL: The Application ---
+# This Pod consumes storage by referencing the PersistentVolumeClaim.
+# It is completely decoupled from the underlying storage technology (hostPath in our case).
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-pvc
+spec:
+  volumes:
+    # We give our volume the nickname 'persistent-storage'.
+    - name: persistent-storage
+      # The source of this volume is not a 'hostPath' or 'emptyDir'.
+      # It's a 'persistentVolumeClaim'.
+      persistentVolumeClaim:
+        # 'claimName' must match the name of the PVC we created.
+        claimName: my-pvc
+
+  containers:
+    - name: pvc-container
+      image: alpine:latest
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      command: ["sleep", "3600"]
+      volumeMounts:
+        # We mount the volume nicknamed 'persistent-storage' into the container.
+        - name: persistent-storage
+          mountPath: /data

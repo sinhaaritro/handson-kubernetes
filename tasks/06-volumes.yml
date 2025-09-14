@@ -1,0 +1,164 @@
+# tasks/06-volumes.yml
+# This module contains all tasks for learning about Kubernetes Volumes.
+
+# 1. emptyDir
+# 2. hostPath
+# 3. persistentVolumeClaim
+# 4. iscsi
+# 5. nfs
+# 6. subPath
+
+version: "3"
+
+tasks:
+  # --- Part 1: emptyDir Volume ---
+
+  apply-pod-emptydir:
+    desc: "Creates the pod with two containers sharing an emptyDir volume."
+    cmds:
+      - kubectl apply -f pod-with-emptydir.yaml
+
+  check-pod-status:
+    desc: "Checks the pod's status. Look for READY '2/2'."
+    cmds:
+      # Use '-w' to watch the status change in real-time.
+      - kubectl get pod pod-with-emptydir -w
+
+  check-logs-reader:
+    desc: "Follows the logs of the 'reader' container to see the shared data."
+    cmds:
+      - |
+        echo "--> Watching logs from the 'reader-container'. You should see a new date appear every 5 seconds."
+        echo "--> This data is being written by the 'writer-container' to the shared volume."
+        echo "--> Press Ctrl+C to stop."
+        # The '-f' flag follows the log stream.
+        # The '-c' flag specifies which container's logs to view.
+        kubectl logs -f pod-with-emptydir -c reader-container
+
+  cleanup-emptydir:
+    desc: "Deletes the pod for the emptyDir exercise."
+    cmds:
+      - kubectl delete pod pod-with-emptydir --ignore-not-found=true
+
+  # --- Part 2: hostPath Volume ---
+
+  apply-pod-hostpath:
+    desc: "Creates the pod that mounts a directory from the Kind node."
+    cmds:
+      - kubectl apply -f pod-with-hostpath.yaml
+
+  create-file-in-pod:
+    desc: "Executes a command inside the pod to create a file on the hostPath volume."
+    cmds:
+      - |
+        echo "--> Creating file '/node-data/host-file.txt' from inside the pod..."
+        kubectl exec pod-with-hostpath -- sh -c 'echo "This message was written from a Pod." > /node-data/host-file.txt'
+
+  check-file-on-node:
+    desc: "Checks for the existence of the file on the Kind node itself."
+    cmds:
+      - |
+        echo "--> Checking for the file in '/tmp/pod-data/' on the Kind node..."
+        # We use 'docker exec' to run a command on the Kind container (the node).
+        docker exec kind-control-plane cat /tmp/pod-data/host-file.txt
+
+  cleanup-hostpath-files:
+    desc: "Removes the test file from the host node by using the pod."
+    cmds:
+      - |
+        echo "--> Removing file '/node-data/host-file.txt' from inside the pod..."
+        # By deleting the file from the pod's mount, we are also deleting it from the host.
+        kubectl exec pod-with-hostpath -- rm -f /node-data/host-file.txt
+        echo "--> Verifying file is gone from the Kind node..."
+        # This command should now fail with an error, which is the desired outcome.
+        docker exec kind-control-plane ls /tmp/pod-data/host-file.txt || echo "File successfully removed."
+        echo "--> Removing the pod..."
+        kubectl delete pod pod-with-hostpath --ignore-not-found=true
+
+  # --- Part 3: Persistent Volumes (Static Provisioning) ---
+
+  apply-pv-pvc:
+    desc: "Applies the PersistentVolume and the PersistentVolumeClaim."
+    cmds:
+      - echo "--> Applying the PV (the administrator's resource)..."
+      - kubectl apply -f persistent-volume.yaml
+      - echo "--> Applying the PVC (the developer's request)..."
+      - kubectl apply -f persistent-volume-claim.yaml
+
+  check-pv-pvc-status:
+    desc: "Checks the status of the PV and PVC. Watch for them to become 'Bound'."
+    cmds:
+      # Use '-w' to watch the status change in real-time.
+      - kubectl get pv,pvc -w
+
+  apply-pod-pvc:
+    desc: "Creates the pod that mounts and uses the PersistentVolumeClaim."
+    cmds:
+      - kubectl apply -f pod-with-pvc.yaml
+
+  test-persistence:
+    desc: "Writes a file to the persistent volume, deletes the pod, and verifies the file still exists."
+    cmds:
+      - |
+        echo "--> Writing '/data/persistent.txt' from inside the pod..."
+        kubectl exec pod-with-pvc -- sh -c 'echo "This data survived a pod deletion" > /data/persistent.txt'
+
+        echo "--> Deleting the pod..."
+        kubectl delete pod pod-with-pvc
+
+        echo "--> Waiting for pod to be fully terminated..."
+        # This waits until the pod is no longer in the cluster's list.
+        kubectl wait --for=delete pod/pod-with-pvc --timeout=60s
+
+        echo "--> Recreating the pod..."
+        kubectl apply -f pod-with-pvc.yaml
+
+        echo "--> Waiting for the new pod to be ready..."
+        kubectl wait --for=condition=ready pod/pod-with-pvc --timeout=60s
+
+        echo "--> Verifying the file exists in the new pod:"
+        kubectl exec pod-with-pvc -- cat /data/persistent.txt
+
+  cleanup-pvc:
+    desc: "Deletes the Pod, PVC, and PV for the static provisioning exercise."
+    cmds:
+      - kubectl delete pod pod-with-pvc --ignore-not-found=true
+      - kubectl delete pvc my-pvc --ignore-not-found=true
+      # Note: The PV will be in a 'Released' state. You would manually delete it in a real cluster.
+      - kubectl delete pv my-persistent-volume --ignore-not-found=true
+
+  # --- Part 5: Using subPath with Local Files (via hostPath) ---
+
+  setup-subpath-source:
+    desc: "Copies your local './subpath-source' directory to the Kind node."
+    # We use 'docker cp' to bridge your local filesystem to the Kind container's filesystem.
+    cmds:
+      - |
+        echo "--> Copying local './subpath-source' to '/tmp/subpath-source' on the Kind node..."
+        docker cp ./subpath-source kind-control-plane:/tmp/
+        echo "--> Verifying files exist on the node:"
+        docker exec kind-control-plane ls -R /tmp/subpath-source
+
+  apply-pod-subpath-features:
+    desc: "Creates the pod that uses subPath to mount the file and folder."
+    cmds:
+      - kubectl apply -f pod-with-subpath-features.yaml
+
+  check-subpath-features:
+    desc: "Verifies that the single file and the full folder were mounted correctly."
+    cmds:
+      - |
+        echo "--> Verifying the single file was mounted to '/mounts/the-single-file.txt':"
+        kubectl exec pod-with-subpath-features -- cat /mounts/the-single-file.txt
+        echo ""
+        echo "--> Verifying the full folder was mounted to '/mounts/the-folder':"
+        kubectl exec pod-with-subpath-features -- ls -l /mounts/the-folder
+
+  cleanup-subpath-features:
+    desc: "Deletes the pod and cleans up the source directory from the Kind node."
+    cmds:
+      - kubectl delete pod pod-with-subpath-features --ignore-not-found=true
+      - |
+        echo "--> Removing source directory from the Kind node..."
+        # We use 'docker exec' to run the 'rm' command inside the Kind container.
+        docker exec kind-control-plane rm -rf /tmp/subpath-source

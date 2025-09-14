@@ -1,0 +1,54 @@
+# pod-with-hostpath.yaml
+#
+# --- GOAL ---
+# This manifest demonstrates a 'hostPath' volume.
+# A 'hostPath' volume mounts a specific file or directory from the host Node's
+# filesystem directly into a Pod.
+#
+# --- WARNING ---
+# This is a powerful feature with security implications. It is typically used
+# for system-level pods that need to read or write to the node itself, like
+# logging agents.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  # A unique and easily recognizable name.
+  name: pod-with-hostpath
+spec:
+  # The 'volumes' section defines the data source.
+  volumes:
+    # We give our volume the nickname 'node-storage'.
+    - name: node-storage
+      # The type is 'hostPath'.
+      hostPath:
+        # 'path' is the absolute path on the host Node that we want to mount.
+        # We use '/tmp/pod-data' as a safe, temporary location.
+        path: /tmp/pod-data
+        # 'type: DirectoryOrCreate' tells Kubernetes: if this directory does not
+        # exist on the node, create it for me. This makes the exercise more reliable.
+        type: DirectoryOrCreate
+
+  # This Pod has only one simple container.
+  containers:
+    - name: hostpath-container
+      image: alpine:latest
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # The command just keeps the container running so we can interact with it.
+      command: ["sleep", "3600"]
+      # The 'volumeMounts' section connects the container to the volume.
+      volumeMounts:
+        - # This name must match the volume's nickname defined above.
+          name: node-storage
+          # The directory will appear inside the container at this path.
+          mountPath: /node-data
