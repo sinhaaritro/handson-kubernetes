@@ -1,0 +1,161 @@
+# alpine-env-pod.yaml
+
+# --- HIGH-LEVEL GOAL ---
+# This Pod is a "test harness" designed to demonstrate every major way of consuming
+# configuration data (from ConfigMaps) and sensitive data (from Secrets).
+#
+# The most important feature of this file is that every single data source is marked
+# with 'optional: true'. This tells Kubernetes, "If you can't find this ConfigMap
+# or Secret, don't fail the Pod; just skip it and continue." This allows us to
+# create the Pod first and then create the configuration resources one by one.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  # The name of our Pod.
+  name: alpine-sec-pod
+spec:
+  # --- Method 8: Docker Registry Secret ---
+  # 'imagePullSecrets' is a list of Secrets that the Kubelet should use
+  # to pull the container image for this Pod.
+  # This field is at the PodSpec level, a sibling to 'containers'.
+  # Pod creation will fail, if dummy or wrong values are provided. Also need to use image my-private-registry.io/alpine:latest
+  imagePullSecrets:
+    - name: secret-for-docker-registry
+
+  containers:
+    - # The name of the container within the Pod.
+      name: alpine-container
+      # We use 'alpine', a minimal Linux image that contains a shell and basic tools.
+      image: alpine:latest
+      # image: my-private-registry.io/alpine:latest
+      # The alpine image will exit immediately if it has no work to do. This command
+      # keeps the container running for an hour so we have time to 'exec' into it
+      # and inspect its environment and filesystem.
+      command: ["sleep", "3600"]
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # ==============================================================================
+      # PART 1: INJECTING DATA AS ENVIRONMENT VARIABLES
+      # ==============================================================================
+      # 'envFrom' is a powerful shortcut. It takes all key-value pairs from a source
+      # (like a ConfigMap or Secret) and makes each one an environment variable.
+      envFrom:
+        # --- Method 1: Secret from 'kubectl create --from-literal' ---
+        - secretRef:
+            # 'name' specifies the name of the Secret to look for.
+            name: secret-from-literal
+            optional: true
+
+        # --- Method 3: Secret from 'kubectl create --from-env-file' ---
+        - secretRef:
+            # The name of the new Secret we will create from the .env file.
+            name: secret-from-env-file
+            optional: true
+
+      # ==============================================================================
+      # PART 4: MOUNTING WITH SPEC FILES
+      # ==============================================================================
+      # --- Method 5.1 (Spec): Secret from kind's 'kind: Secret' with Plain Text ---
+      # Only the key mentioned will be loaded from the manifest rest will be ignored
+      env:
+        - # The name of the environment variable inside the container.
+          name: SECRET_FROM_MANIFEST_TEXT
+          # 'valueFrom' allows you to source the value from a specific key in a Secret.
+          valueFrom:
+            secretKeyRef:
+              # CORRECTED: The name of the Secret we are creating in this step.
+              name: secret-from-manifest-text
+              # CORRECTED: The specific key inside that Secret whose value we want.
+              key: SECRET_STRINGDATA_VAR
+              optional: true
+
+      # ==============================================================================
+      # PART 2: MOUNTING DATA AS FILES IN VOLUMES
+      # ==============================================================================
+      # This is a two-step process:
+      # 1. Define the data source in the 'volumes' section at the bottom of the Pod spec.
+      # 2. Mount the defined volume into a specific directory here in 'volumeMounts'.
+
+      volumeMounts:
+        # --- Method 2.1 (Mount): Secret from 'kubectl create --from-file' ---
+        - # 'name' is a nickname that MUST match a volume defined in the 'volumes' section below.
+          # This is the link between the data source and the mount point.
+          name: single-secret-volume
+          # 'mountPath' is the directory INSIDE THE CONTAINER where the files will appear.
+          mountPath: /secrets/from-single-file
+          # It's a best practice to mount configuration data as read-only.
+          readOnly: true
+
+        # --- Method 4.1 (Mount): Secret from 'kubectl create --from-file' with full directory---
+        - name: directory-secret-volume
+          mountPath: /secrets/from-directory
+          readOnly: true
+
+        # --- Method 5.2 (Mount): Secret from kind's 'kind: Secret' with Plain Text---
+        - name: manifest-text-volume
+          mountPath: /secrets/from-manifest-text
+          readOnly: true
+
+        # --- Method 6.1 (Mount): Secret from kind's 'kind: Secret' with Base64---
+        - name: manifest-base64-volume
+          mountPath: /secrets/from-manifest-base64
+          readOnly: true
+
+        # --- Method 7.1 (Mount): TLS Secret from 'kubectl create --from-file' ---
+        - name: tls-volume
+          mountPath: /secrets/from-tls
+          readOnly: true
+
+  # ==============================================================================
+  # PART 3: DEFINING THE VOLUMES (THE DATA SOURCES)
+  # ==============================================================================
+  # The 'volumes' section defines a pool of storage volumes available to this Pod.
+  # Here, we define volumes whose content comes from our ConfigMaps and Secrets.
+  volumes:
+    # --- Method 2.2 (Volume): Secret from 'kubectl create --from-file' ---
+    - # The nickname that 'volumeMounts' uses to refer to this volume.
+      name: single-secret-volume
+      # 'configMap' specifies that this volume's data comes from a Secret.
+      secret:
+        # The name of the Secret to use as the source.
+        secretName: secret-from-single-file
+        # If this Secret doesn't exist, the Pod will still start, but the
+        # '/etc/configmap/file' directory will be empty.
+        optional: true
+
+    # --- Method 4.2 (Volume): Secret from 'kubectl create --from-file' with full directory ---
+    - name: directory-secret-volume
+      secret:
+        secretName: secret-from-directory
+        optional: true
+
+    # --- Method 5.3 (Volume): Secret from kind's 'kind: Secret' with Plain Text ---
+    - name: manifest-text-volume
+      secret:
+        secretName: secret-from-manifest-text
+        optional: true
+
+    # --- Method 6.1 (volume): Secret from kind's 'kind: Secret' with Base64---
+    - name: manifest-base64-volume
+      secret:
+        secretName: secret-from-manifest-base64
+        optional: true
+
+    # --- Method 7.1 (volume): TLS Secret from 'kubectl create --from-file' ---
+    - name: tls-volume
+      secret:
+        secretName: secret-for-tls
+        optional: true
+
+  # We use 'Never' for test pods like this that are not meant to be restarted by Kubernetes.
+  restartPolicy: Never

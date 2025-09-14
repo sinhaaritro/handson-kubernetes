@@ -16,6 +16,12 @@ includes:
   03-deployment:
     taskfile: ./tasks/03-deployments.yml
     dir: ./tasks
+  04-configmap:
+    taskfile: ./tasks/04-configmaps.yml
+    dir: ./tasks
+  05-secret:
+    taskfile: ./tasks/05-secrets.yml
+    dir: ./tasks
 
 tasks:
   default:

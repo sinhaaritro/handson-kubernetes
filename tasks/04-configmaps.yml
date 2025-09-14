@@ -1,0 +1,110 @@
+# tasks/04-configmaps.yml
+# This module contains all tasks for learning about ConfigMaps.
+
+version: "3"
+
+tasks:
+  get-configmaps:
+    desc: "Lists all ConfigMaps in the current namespace."
+    cmds:
+      - kubectl get configmaps
+
+  describe-configmap:
+    desc: "Shows the data and details of the 'cm-from-literal' ConfigMap."
+    cmds:
+      - kubectl describe configmap cm-from-literal
+
+  # --- Step 1: Create the ConfigMap Resources ---
+  # --- Method 1: Create from Literals ---
+  create-cm-from-literal:
+    desc: "Creates a ConfigMap from literal key-value pairs."
+    cmds:
+      - kubectl create configmap cm-from-literal --from-literal=LITERAL_VAR1="Value One from Literal" --from-literal=LITERAL_VAR2="Value Two from Literal"
+
+  # --- Method 2: Create from a Single File ---
+  create-cm-from-single-file:
+    desc: "Creates a ConfigMap from the single file './config-sources/from-file.conf'."
+    cmds:
+      - kubectl create configmap cm-from-single-file --from-file=./config-sources/from-file.conf
+
+  # --- Method 3: Create from an Env File ---
+  create-cm-from-env-file:
+    desc: "Creates a ConfigMap from the env file './config-sources/from-env-file.env'."
+    cmds:
+      - kubectl create configmap cm-from-env-file --from-env-file=./config-sources/from-env-file.env
+
+  # --- Method 4: Create from a Directory ---
+  create-cm-from-directory:
+    desc: "Creates a ConfigMap from all files in './config-sources/from-directory-files'."
+    cmds:
+      - kubectl create configmap cm-from-directory --from-file=./config-sources/from-directory-files
+
+  # --- Method 5: Create from a Manifest File ---
+  apply-cm-from-manifest:
+    desc: "Creates or updates a ConfigMap from the 'configmap-from-manifest.yaml' file."
+    cmds:
+      - kubectl apply -f configmap-from-manifest.yaml
+
+  # --- Step 2: Create the Pod that consumes them ---
+
+  apply-pod:
+    desc: "Applies the alpine-env-pod.yaml manifest to create the test pod."
+    cmds:
+      - kubectl apply -f alpine-env-pod.yaml
+
+  # --- Step 3: Verify the ConfigMaps were loaded ---
+
+  check-env-vars:
+    desc: "Verifies that the environment variables from the ConfigMap were injected."
+    cmds:
+      - |
+        echo "--- Checking for environment variables in alpine-env-pod ---"
+        kubectl exec alpine-env-pod -- printenv | grep -E 'LITERAL_|ENVFILE_'
+
+  check-mounted-file:
+    desc: "Verifies the mounted file from the 'cm-from-single-file' ConfigMap."
+    cmds:
+      - |
+        echo "--- Checking for mounted file in /config/from-single-file/ ---"
+        # The key in the ConfigMap is the filename, so that becomes the filename inside the mount path.
+        kubectl exec alpine-env-pod -- cat /config/from-single-file/from-file.conf
+
+  check-mounted-directory:
+    desc: "Verifies the mounted files from the 'cm-from-directory' ConfigMap."
+    cmds:
+      - |
+        echo "--- Checking for mounted directory in /config/from-directory/ ---"
+        echo "Listing files:"
+        kubectl exec alpine-env-pod -- ls /config/from-directory/
+        echo "---"
+        echo "Content of DIR_VAR1:"
+        kubectl exec alpine-env-pod -- cat /config/from-directory/DIR_VAR1
+
+  check-mounted-manifest:
+    desc: "Verifies the mounted files from the 'cm-from-manifest' ConfigMap."
+    cmds:
+      - |
+        echo "--- Checking for mounted directory in /config/from-manifest/ ---"
+        echo "Listing files:"
+        kubectl exec alpine-env-pod -- ls /config/from-manifest/
+        echo "---"
+        echo "Content of MANIFEST_VAR1:"
+        kubectl exec alpine-env-pod -- cat /config/from-manifest/MANIFEST_VAR1
+
+  # --- Step 4: Cleanup ---
+
+  cleanup:
+    desc: "Deletes the Pod and ConfigMap for this lesson."
+    cmds:
+      - kubectl delete pod alpine-env-pod --ignore-not-found=true
+      - kubectl delete configmap cm-from-literal --ignore-not-found=true
+      - kubectl delete configmap cm-from-single-file --ignore-not-found=true
+      - kubectl delete configmap cm-from-env-file --ignore-not-found=true
+      - kubectl delete configmap cm-from-env-directory --ignore-not-found=true
+      - kubectl delete configmap cm-from-manifest --ignore-not-found=true
+
+  delete-all-cm:
+    desc: "Deletes all ConfigMaps created."
+    cmds:
+      - kubectl delete pod alpine-env-pod --ignore-not-found=true
+      - kubectl delete configmap cm-from-literal cm-from-single-file cm-from-env-file cm-from-directory cm-from-manifest --ignore-not-found=true

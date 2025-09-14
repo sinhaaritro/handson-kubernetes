@@ -1,0 +1,22 @@
+# configmap-from-manifest.yaml
+#
+# --- GOAL ---
+# This file demonstrates the declarative way to create a ConfigMap.
+# Instead of telling Kubernetes *how* to create the object (with 'kubectl create'),
+# we simply declare the *desired state* of the object in a YAML file.
+#
+# This is the standard for version-controlled, repeatable deployments (GitOps).
+
+apiVersion: v1
+# The 'kind' must be 'ConfigMap'.
+kind: ConfigMap
+metadata:
+  # The name we give to our ConfigMap. The Pod will use this name to find it.
+  name: cm-from-manifest
+# The 'data' field holds the key-value pairs.
+# All values must be strings.
+data:
+  # Key 1
+  MANIFEST_VAR1: "Value One from Manifest"
+  # Key 2
+  MANIFEST_VAR2: "Value Two from Manifest"
