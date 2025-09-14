@@ -14,7 +14,7 @@ metadata:
   # name provides a unique name for the Pod within its namespace.
   # Here, we are naming our pod 'nginx-pod'.
   name: nginx-pod
-  
+
   # labels are key/value pairs that are attached to objects.
   # They are used to organize and select subsets of objects. For example, a Service
   # uses labels to find all the Pods it should send traffic to.
@@ -36,6 +36,16 @@ spec:
       # The Docker image to use for this container. Kubernetes will pull this image
       # from a container registry (like Docker Hub) if it's not already on the node.
       # It's good practice to specify a version tag (like :1.25) instead of 'latest'.
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
 
       ports:
         # ports is a list of network ports this container exposes.

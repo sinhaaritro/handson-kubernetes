@@ -42,7 +42,6 @@ spec:
   # will wait for 10 full seconds before continuing the rollout (i.e., killing an old pod).
   minReadySeconds: 10
 
-
   # selector tells the Deployment which Pods to manage. The Deployment uses this
   # to link to its underlying ReplicaSet and Pods.
   selector:
@@ -60,12 +59,22 @@ spec:
     spec:
       # The container configuration.
       containers:
-      - name: nginx
-        # We are starting with the SAME OLDER version of Nginx.
-        image: nginx:1.24
-        ports:
-        - containerPort: 80
+        - name: nginx
+          # We are starting with the SAME OLDER version of Nginx.
+          image: nginx:1.24
 
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)
+
+          ports:
+            - containerPort: 80
 # --- HOW DEPLOYMENTS WORK ---
 # When you apply this file, the Deployment controller does the following:
 # 1. Creates a ReplicaSet based on the template (e.g., nginx-deployment-xyz).

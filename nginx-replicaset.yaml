@@ -31,13 +31,23 @@ spec:
     spec:
       # The container configuration for the Pods.
       containers:
-      - name: nginx
-        # We are intentionally using an OLDER version of Nginx.
-        # This will allow us to see an update in action when using a Deployment.
-        image: nginx:1.24
-        ports:
-        - containerPort: 80
+        - name: nginx
+          # We are intentionally using an OLDER version of Nginx.
+          # This will allow us to see an update in action when using a Deployment.
+          image: nginx:1.24
 
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)
+
+            ports:
+              - containerPort: 80
 # --- WHY YOU DON'T USE THIS IN PRODUCTION ---
 # A ReplicaSet is great at keeping a specific number of Pods running.
 # However, it has no built-in strategy for performing updates. If you wanted to
