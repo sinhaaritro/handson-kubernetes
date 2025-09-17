@@ -91,6 +91,12 @@ tasks:
     desc: "Creates a Kind cluster using the local kind-config.yaml file."
     cmds:
       - kind create cluster --config {{.KIND_CONFIG}}
+      # This command tells Kind to wait until the Kubernetes nodes report a 'Ready' status.
+      # This ensures that core components like the CNI network are up and running
+      # before you start deploying your own applications.
+      - |
+        echo "--> Waiting for cluster nodes to become ready..."
+        kind get nodes --name kind | awk '{print $1}' | xargs -I {} kubectl wait --for=condition=Ready node/{} --timeout=120s
     preconditions:
       - sh: "[ -f {{.KIND_CONFIG}} ]"
         msg: "The Kind config file '{{.KIND_CONFIG}}' is missing."
@@ -104,6 +110,15 @@ tasks:
     preconditions:
       - sh: '(kind get clusters | grep -q "^kind$")'
         msg: "No Kind cluster was found to delete."
+
+  install-calico-cni:
+    desc: "Installs the Calico CNI to enable NetworkPolicy enforcement."
+    cmds:
+      - kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/calico.yaml
+      - |
+        echo "--> Waiting for Calico pods to be ready..."
+        # This waits for the Calico node agent to be fully rolled out.
+        kubectl rollout status daemonset/calico-node -n kube-system --timeout=120s
 
   install-metrics-server:
     desc: "Installs the Metrics Server to enable resource usage commands (top)."

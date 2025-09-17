@@ -1,0 +1,44 @@
+# webapp-deployment.yaml
+#
+# --- GOAL ---
+# This manifest creates a Deployment to run our backend web application.
+# We run 2 replicas to demonstrate that a Service can load balance between them.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+spec:
+  # 'replicas' tells the Deployment to maintain 2 identical Pods.
+  replicas: 2
+  # 'selector' is how the Deployment finds which Pods to manage.
+  selector:
+    matchLabels:
+      app: webapp
+  # 'template' is the blueprint for the Pods that will be created.
+  template:
+    metadata:
+      # --- THE CRITICAL LINK ---
+      # This label is applied to each Pod. The 'webapp-service' will use this
+      # exact label to know which Pods to send traffic to.
+      labels:
+        app: webapp
+    spec:
+      containers:
+        - name: webapp-container
+          # We use a simple Nginx image as our web server.
+          image: nginx:latest
+
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)
+
+          ports:
+            # This is an informational port, telling us the container listens on port 80.
+            - containerPort: 80

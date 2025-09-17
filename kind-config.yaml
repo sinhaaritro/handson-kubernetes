@@ -8,6 +8,11 @@ apiVersion: kind.x-k8s.io/v1alpha4
 # This defines the type of configuration object, which in this case is a 'Cluster'.
 kind: Cluster
 
+# # Uncomment this to disable the default CNI (Container Network Interface) plugin ---
+# networking:
+#   # This disables the default CNI plugin (Kindnet).
+#   disableDefaultCNI: true
+
 # The 'nodes' section is a list where you define all the nodes for your cluster.
 # For a simple learning environment, a single-node cluster is often sufficient.
 nodes:
@@ -25,13 +30,20 @@ nodes:
       # This mapping forwards traffic from port 80 on your host to port 80 on the node.
       # This is essential for accessing services like an Ingress controller over standard HTTP.
       - containerPort: 80 # The port inside the Kind node (container).
-        hostPort: 80      # The port on your local machine (localhost:80).
-        protocol: TCP     # The network protocol to use (usually TCP for HTTP/S).
+        hostPort: 80 # The port on your local machine (localhost:80).
+        protocol: TCP # The network protocol to use (usually TCP for HTTP/S).
 
       # This mapping does the same for port 443, used for HTTPS traffic.
       - containerPort: 443 # The HTTPS port inside the Kind node.
-        hostPort: 443      # The HTTPS port on your local machine (localhost:443).
+        hostPort: 443 # The HTTPS port on your local machine (localhost:443).
         protocol: TCP
+
+      # # This mapping is for our NodePort service.
+      # # It forwards traffic from localhost:30007 to the Kind node's port 30007.
+      # # Needed for the networking part
+      # - containerPort: 30007
+      #   hostPort: 30007
+      #   protocol: TCP
 
   # This is our second node, a dedicated worker.
   # - role: worker

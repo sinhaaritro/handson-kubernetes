@@ -1,0 +1,29 @@
+# webapp-service.yaml
+#
+# --- GOAL ---
+# This manifest creates a Service, which provides a stable endpoint (IP address
+# and DNS name) for our webapp Pods. This solves the problem of Pods having
+# changing, unreliable IP addresses.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+spec:
+  # 'type: ClusterIP' means this Service is only reachable from *inside* the cluster.
+  # This is the default type, but we are being explicit.
+  type: ClusterIP
+  # --- THE CRITICAL LINK ---
+  # 'selector' tells the Service which Pods to send traffic to. It will find all
+  # Pods in the same namespace that have the label 'app: webapp'.
+  selector:
+    app: webapp
+  ports:
+    - # 'protocol' defines the network protocol.
+      protocol: TCP
+      # 'port' is the port that the Service itself will listen on.
+      # Other pods will connect to the Service on this port.
+      port: 80
+      # 'targetPort' is the port on the *Pod* that the traffic should be sent to.
+      # The Service will forward traffic from its port 80 to the container's port 80.
+      targetPort: 80

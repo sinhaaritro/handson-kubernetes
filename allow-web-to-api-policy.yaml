@@ -1,0 +1,36 @@
+# allow-web-to-api-policy.yaml
+#
+# --- GOAL ---
+# This is the NetworkPolicy object. It acts like a firewall rule for pods.
+# This policy will select the 'api-server' pods and only allow incoming
+# traffic from 'web-frontend' pods.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-to-api-policy
+spec:
+  # --- 1. Which pods to protect? ---
+  # 'podSelector' specifies which pods this policy applies to.
+  # An empty podSelector would select all pods in the namespace.
+  podSelector:
+    matchLabels:
+      app: api-server
+
+  # --- 2. What kind of traffic does this policy affect? ---
+  # We are defining rules for 'Ingress' (incoming) traffic.
+  policyTypes:
+    - Ingress
+
+  # --- 3. What are the rules? ---
+  # 'ingress' is a list of "allow" rules. If this section is empty, all ingress
+  # traffic is blocked. If it's not defined, all traffic is allowed.
+  ingress:
+    # This is our first (and only) allow rule.
+    - from:
+        # This rule allows traffic from a specific set of pods.
+        - podSelector:
+            matchLabels:
+              # --- THE CRITICAL LINK ---
+              # It only allows traffic from pods that have the label 'app: web-frontend'.
+              app: web-frontend

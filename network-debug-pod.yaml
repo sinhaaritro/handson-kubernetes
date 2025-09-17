@@ -1,0 +1,30 @@
+# network-debug-pod.yaml
+#
+# --- GOAL ---
+# This manifest creates a simple "client" Pod that we can use to run network
+# commands from *inside* the cluster. This allows us to test connectivity
+# to our internal Services like 'webapp-service'.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: network-debug-pod
+spec:
+  containers:
+    - name: debug-container
+      # We use 'nicolaka/netshoot', a powerful image that includes many networking
+      # tools like 'curl', 'ping', and 'dig', perfect for debugging.
+      image: nicolaka/netshoot
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # This command just keeps the container running so we can 'exec' into it.
+      command: ["sleep", "3600"]

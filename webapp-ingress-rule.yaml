@@ -1,0 +1,31 @@
+# webapp-ingress-rule.yaml
+#
+# --- GOAL ---
+# This manifest creates an Ingress resource. An Ingress is a set of rules for an
+# HTTP/S router, allowing you to define how external traffic should be routed to
+# internal services based on hostnames and paths.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-ingress-rule
+spec:
+  # 'rules' is a list of routing rules.
+  rules:
+    # This rule applies to traffic intended for the hostname 'webapp.local'.
+    - host: webapp.local
+      http:
+        paths:
+          # This path rule matches all requests to the root of the hostname.
+          - path: /
+            pathType: Prefix
+            # --- THE CRITICAL LINK ---
+            # 'backend' specifies where to send the traffic that matches this rule.
+            backend:
+              service:
+                # We send the traffic to our original 'webapp-service' (the ClusterIP service).
+                # The Ingress controller handles getting the traffic from the outside world to the internal service.
+                name: webapp-service
+                port:
+                  # The port on the service to connect to.
+                  number: 80

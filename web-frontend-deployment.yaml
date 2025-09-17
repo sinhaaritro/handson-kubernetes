@@ -1,0 +1,36 @@
+# web-frontend-deployment.yaml
+# This represents an "allowed" client. Pods from this deployment will have the
+# correct label to be allowed through the firewall.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-frontend
+  template:
+    metadata:
+      # --- THE CRITICAL LABEL ---
+      # The NetworkPolicy will check for this label on incoming traffic.
+      labels:
+        app: web-frontend
+    spec:
+      containers:
+        - name: frontend-container
+          # We use the netshoot image as it contains networking tools like 'curl'.
+          image: nicolaka/netshoot
+
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)
+
+          command: ["sleep", "3600"]

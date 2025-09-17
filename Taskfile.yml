@@ -9,22 +9,25 @@ vars:
 includes:
   01-setup:
     taskfile: ./tasks/01-setup.yml
-    dir: ./tasks
+    dir: .
   02-pod:
     taskfile: ./tasks/02-pods.yml
-    dir: ./tasks
+    dir: .
   03-deployment:
     taskfile: ./tasks/03-deployments.yml
-    dir: ./tasks
+    dir: .
   04-configmap:
     taskfile: ./tasks/04-configmaps.yml
-    dir: ./tasks
+    dir: .
   05-secret:
     taskfile: ./tasks/05-secrets.yml
-    dir: ./tasks
+    dir: .
   06-volume:
     taskfile: ./tasks/06-volumes.yml
-    dir: ./tasks
+    dir: .
+  07-networking:
+    taskfile: ./tasks/07-networking.yml
+    dir: .
 
 tasks:
   default:

@@ -1,0 +1,28 @@
+# webapp-nodeport-service.yaml
+#
+# --- GOAL ---
+# This manifest creates a Service of type 'NodePort'. This is one of the simplest
+# ways to expose an application to traffic from outside the cluster.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport-service
+spec:
+  # --- THE KEY CHANGE ---
+  # 'type: NodePort' tells Kubernetes to do two things:
+  # 1. Allocate a port from a specific range (usually 30000-32767) on EVERY node in the cluster.
+  # 2. Forward any traffic that arrives on that node port to this Service's internal port.
+  type: NodePort
+  # This selector is the same as our ClusterIP service. It finds the Pods to send traffic to.
+  selector:
+    app: webapp
+  ports:
+    - # 'port' is the internal port for the Service's ClusterIP.
+      port: 80
+      # 'targetPort' is the port on the Pod that the traffic should be sent to.
+      targetPort: 80
+      # --- The External Port ---
+      # 'nodePort' is the specific high port that will be opened on the node.
+      # By specifying it here, we make it predictable for our lesson.
+      nodePort: 30007

@@ -1,0 +1,37 @@
+# api-server-deployment.yaml
+# This is our protected backend application.
+# We will create a NetworkPolicy that only allows specific pods to access it.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      # --- THE CRITICAL LABEL ---
+      # The NetworkPolicy will use this label to select which pods to apply the firewall rules to.
+      labels:
+        app: api-server
+    spec:
+      containers:
+        - name: api-server-container
+          # We use Nginx as a simple server that responds to requests.
+          image: nginx:latest
+
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)
+
+          ports:
+            - containerPort: 80

@@ -1,0 +1,183 @@
+# tasks/07-networking.yml
+# This module contains all tasks for learning about Kubernetes Networking.
+
+version: "3"
+
+tasks:
+  get-services:
+    desc: "Lists all services in the namespace, showing their types and ports."
+    cmds:
+      # 'svc' is the short name for 'services'.
+      # '-o wide' is useful because it also shows the 'SELECTOR' the service uses.
+      - kubectl get svc -o wide
+
+  describe-service:
+    desc: "Shows detailed information about a service, including its Endpoints (the Pod IPs)."
+    vars:
+      # We provide a default name, but it can be overridden.
+      # Usage: task describe-service NAME=webapp-nodeport-service
+      NAME: webapp-service
+    cmds:
+      - kubectl describe service {{.NAME}}
+
+  # --- Part 1: In-Cluster Communication ---
+
+  apply-webapp:
+    desc: "Applies the webapp Deployment and its ClusterIP Service."
+    cmds:
+      - kubectl apply -f webapp-deployment.yaml
+      - kubectl apply -f webapp-service.yaml
+
+  apply-debug-pod:
+    desc: "Applies the network-debug-pod for testing connectivity."
+    cmds:
+      - kubectl apply -f network-debug-pod.yaml
+
+  test-service-dns:
+    desc: "Execs into the debug pod and curls the webapp-service by its DNS name."
+    cmds:
+      - |
+        echo "--> Testing connection to 'http://webapp-service'..."
+        # Kubernetes provides automatic DNS. The Service name 'webapp-service'
+        # resolves to the stable ClusterIP. This is the standard way Pods communicate.
+        kubectl exec network-debug-pod -- curl http://webapp-service
+
+  test-service-resilience:
+    desc: "Demonstrates that the Service is resilient to Pod failures."
+    cmds:
+      - |
+        echo "--> Getting the name of a webapp pod to delete..."
+        POD_TO_DELETE=$(kubectl get pods -l app=webapp -o jsonpath='{.items[0].metadata.name}')
+        echo "--> Deleting pod: $POD_TO_DELETE"
+        kubectl delete pod $POD_TO_DELETE
+
+        echo "--> Immediately testing connection to the service..."
+        # The curl command should still succeed because the Service will automatically
+        # stop sending traffic to the terminating pod and use the other replica.
+        kubectl exec network-debug-pod -- curl http://webapp-service
+
+  cleanup-part1:
+    desc: "Deletes the Deployment, Service, and Pod for this lesson."
+    cmds:
+      - kubectl delete pod network-debug-pod --ignore-not-found=true
+      - kubectl delete service webapp-service --ignore-not-found=true
+      - kubectl delete deployment webapp-deployment --ignore-not-found=true
+
+  # --- Part 2: Exposing the Application ---
+
+  # --- Method A: NodePort ---
+  apply-service-nodeport:
+    desc: "Exposes the webapp on a port on the cluster node (e.g., 30007). Need the webapp-deployment and webapp-service from Part 1"
+    cmds:
+      - kubectl apply -f webapp-nodeport-service.yaml
+
+  test-service-nodeport:
+    desc: "Tests the NodePort service from your local machine."
+    cmds:
+      - |
+        echo "--> Testing connection to http://localhost:30007..."
+        # Kind automatically maps the Node's ports to your localhost,
+        # so we can curl localhost with the specified nodePort.
+        curl http://localhost:30007
+
+  # --- Method B: Ingress with Nginx ---
+  install-nginx-controller:
+    desc: "Installs the Nginx Ingress controller into the Kind cluster (one-time setup)."
+    cmds:
+      - kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+      - |
+        echo "--> Waiting for the Ingress controller to be ready..."
+        # This waits for the Ingress deployment to be fully available before proceeding.
+        kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=120s
+
+  # --- Method C: Ingress with Traefik ---
+  install-traefik-controller:
+    desc: "Installs the Traefik Ingress controller into the Kind cluster."
+    cmds:
+      - kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/reference/dynamic-configuration/kubernetes-ingress-definition.yml
+      - |
+        echo "--> Waiting for the Traefik Ingress controller to be ready..."
+        kubectl wait --namespace default --for=condition=ready pod --selector=app.kubernetes.io/name=traefik --timeout=180s
+
+  # --- Generic Ingress Rule (works for both controllers) ---
+
+  apply-ingress-rule:
+    desc: "Applies the Ingress rule to route 'webapp.local' to our service."
+    cmds:
+      - kubectl apply -f webapp-ingress-rule.yaml
+
+  test-ingress-rule:
+    desc: "Tests the Ingress rule using a special curl command."
+    cmds:
+      - |
+        echo "--> Testing connection to http://webapp.local..."
+        # Your computer doesn't know what 'webapp.local' is. The '--resolve' flag
+        # tells curl to manually resolve 'webapp.local' to '127.0.0.1' (localhost),
+        # which Kind maps to the Ingress controller.
+        curl --resolve webapp.local:80:127.0.0.1 http://webapp.local
+
+  # --- Cleanup Tasks ---
+
+  cleanup-part2:
+    desc: "Deletes all resources from Part 2 (NodePort and Ingress Rule)."
+    cmds:
+      - kubectl delete service webapp-nodeport-service --ignore-not-found=true
+      - kubectl delete ingress webapp-ingress-rule --ignore-not-found=true
+
+  cleanup-nginx-ingress:
+    desc: "Uninstalls the Nginx Ingress controller."
+    cmds:
+      - kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+
+  cleanup-traefik-ingress:
+    desc: "Uninstalls the Traefik Ingress controller."
+    cmds:
+      - kubectl delete -f https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/reference/dynamic-configuration/kubernetes-ingress-definition.yml
+
+  # --- Part 3: Securing Traffic with NetworkPolicy ---
+
+  apply-netpol-apps:
+    desc: "Applies the frontend/backend deployments, service, and an external client pod."
+    cmds:
+      - kubectl apply -f api-server-deployment.yaml
+      - kubectl apply -f api-server-service.yaml
+      - kubectl apply -f web-frontend-deployment.yaml
+      # We create a simple pod with no labels to act as our "untrusted" client.
+      - kubectl run external-client-pod --image=nicolaka/netshoot -- sleep 3600
+
+  test-netpol-before:
+    desc: "BEFORE applying the policy, shows all pods can connect to the api-server."
+    cmds:
+      - |
+        FRONTEND_POD=$(kubectl get pods -l app=web-frontend -o jsonpath='{.items[0].metadata.name}')
+        echo "--> Testing connection from ALLOWED frontend ($FRONTEND_POD)..."
+        kubectl exec $FRONTEND_POD -- curl --connect-timeout 5 api-server-service && echo "SUCCESS: Connection from frontend is open."
+        echo ""
+        echo "--> Testing connection from UNTRUSTED external client..."
+        kubectl exec external-client-pod -- curl --connect-timeout 5 api-server-service && echo "SUCCESS: Connection from external client is open."
+
+  apply-netpol-policy:
+    desc: "Applies the NetworkPolicy to restrict traffic to the api-server."
+    cmds:
+      - kubectl apply -f allow-web-to-api-policy.yaml
+
+  test-netpol-after:
+    desc: "AFTER applying the policy, shows only the frontend can connect."
+    cmds:
+      - |
+        FRONTEND_POD=$(kubectl get pods -l app=web-frontend -o jsonpath='{.items[0].metadata.name}')
+        echo "--> Testing connection from ALLOWED frontend ($FRONTEND_POD)..."
+        kubectl exec $FRONTEND_POD -- curl --connect-timeout 5 api-server-service && echo "SUCCESS: Connection from frontend is still open."
+        echo ""
+        echo "--> Testing connection from UNTRUSTED external client..."
+        echo "--> This command is EXPECTED TO FAIL (timeout)..."
+        # The '|| true' ensures that the task doesn't stop with an error if curl fails, which it should.
+        kubectl exec external-client-pod -- curl --connect-timeout 5 api-server-service || echo "SUCCESS: Connection from external client is now BLOCKED as expected."
+
+  cleanup-part3:
+    desc: "Deletes all resources for the NetworkPolicy lesson."
+    cmds:
+      - kubectl delete pod external-client-pod --ignore-not-found=true
+      - kubectl delete deployment web-frontend-deployment api-server-deployment --ignore-not-found=true
+      - kubectl delete service api-server-service --ignore-not-found=true
+      - kubectl delete networkpolicy allow-web-to-api-policy --ignore-not-found=true
