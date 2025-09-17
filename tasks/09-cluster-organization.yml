@@ -1,0 +1,50 @@
+# tasks/09-cluster-organization.yml
+# This module contains all tasks for learning about cluster organization.
+
+version: "3"
+
+tasks:
+  # --- Part 1: Namespaces ---
+
+  apply-namespaces:
+    desc: "Creates the 'development' and 'testing' namespaces."
+    cmds:
+      - kubectl apply -f namespace-development.yaml
+      - kubectl apply -f namespace-testing.yaml
+
+  apply-namespaced-apps:
+    desc: "Deploys one application into the 'development' ns and another into 'testing'."
+    cmds:
+      - kubectl apply -f webapp-deployment-dev.yaml
+      - kubectl apply -f webapp-deployment-test.yaml
+
+  check-namespaces:
+    desc: "Lists the namespaces in the cluster."
+    cmds:
+      - kubectl get namespaces
+
+  check-pods-all-ns:
+    desc: "Lists all pods across ALL namespaces to show they are running."
+    cmds:
+      # The '-A' or '--all-namespaces' flag is a superpower for cluster admins.
+      - kubectl get pods -A
+
+  check-pods-specific-ns:
+    desc: "Demonstrates that resources are isolated by default."
+    cmds:
+      - |
+        echo "--> Checking for pods in the 'default' namespace (should be empty or unrelated):"
+        kubectl get pods
+        echo ""
+        echo "--> Checking for pods in the 'development' namespace:"
+        # The '-n' or '--namespace' flag scopes the command to a specific namespace.
+        kubectl get pods -n development
+        echo ""
+        echo "--> Checking for pods in the 'testing' namespace:"
+        kubectl get pods -n testing
+
+  cleanup-namespaces:
+    desc: "Deletes the 'development' and 'testing' namespaces and all resources within them."
+    cmds:
+      # Deleting a namespace automatically deletes all the resources (Deployments, Pods, etc.) inside it.
+      - kubectl delete namespace development testing --ignore-not-found=true

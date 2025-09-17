@@ -28,6 +28,12 @@ includes:
   07-networking:
     taskfile: ./tasks/07-networking.yml
     dir: .
+  08-advanced-pods:
+    taskfile: ./tasks/08-advanced-pods.yml
+    dir: .
+  09-cluster-organization:
+    taskfile: ./tasks/09-cluster-organization.yml
+    dir: .
 
 tasks:
   default:

@@ -1,0 +1,62 @@
+# app-with-sidecar.yaml
+# This manifest demonstrates the Sidecar pattern.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-sidecar
+spec:
+  # We define a shared 'emptyDir' volume for the containers to use.
+  volumes:
+    - name: shared-logs-volume
+      emptyDir: {}
+
+  # Both containers below run in parallel for the entire life of the Pod.
+  containers:
+    # --- Container 1: The Main Application ---
+    - name: main-app-container
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # This loop writes a new log entry to a file in the shared volume every 5 seconds.
+      command:
+        [
+          "/bin/sh",
+          "-c",
+          'while true; do echo "Log entry from $(date)" >> /shared-logs/app.log; sleep 5; done',
+        ]
+      # We mount the shared volume into this container.
+      volumeMounts:
+        - name: shared-logs-volume
+          mountPath: /shared-logs
+
+    # --- Container 2: The Sidecar ---
+    - name: log-shipper-sidecar
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # This sidecar's only job is to watch the log file and print its contents.
+      # In a real-world scenario, it would "ship" these logs to a central server.
+      command: ["/bin/sh", "-c", "tail -f /shared-logs/app.log"]
+      # We mount the SAME shared volume into this container.
+      volumeMounts:
+        - name: shared-logs-volume
+          mountPath: /shared-logs

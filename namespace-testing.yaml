@@ -1,0 +1,7 @@
+# namespace-testing.yaml
+# This manifest defines a second, separate virtual cluster.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: testing

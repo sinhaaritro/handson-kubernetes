@@ -1,0 +1,8 @@
+# namespace-development.yaml
+# This manifest defines a Namespace, which acts like a virtual cluster.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  # The name of our first virtual cluster.
+  name: development

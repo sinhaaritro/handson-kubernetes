@@ -1,0 +1,47 @@
+# app-with-init-container.yaml
+# This manifest demonstrates an Init Container.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-init-container
+spec:
+  # --- INIT CONTAINERS ---
+  # This block defines one or more containers that run sequentially to completion
+  # *before* the main 'containers' block starts.
+  initContainers:
+    - name: init-wait-for-service
+      # We use a networking tool image.
+      image: nicolaka/netshoot
+      # This command is a loop that tries to resolve the DNS name 'backend-service'.
+      # The 'until' command will keep trying until 'nslookup' succeeds.
+      # The Init Container will only exit (and be considered "complete") when this loop finishes.
+      command:
+        [
+          "sh",
+          "-c",
+          'until nslookup backend-service; do echo "Waiting for backend service..."; sleep 2; done;',
+        ]
+
+  # --- MAIN APPLICATION CONTAINER ---
+  # This container will only be created and started after the initContainer succeeds.
+  containers:
+    - name: main-app-container
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # A simple command to prove that the main application has started.
+      command:
+        ["/bin/sh", "-c", "echo 'Success! Main application has started.'"]
+
+  # We use 'OnFailure' because this pod is meant to run a task and then stop.
+  restartPolicy: OnFailure

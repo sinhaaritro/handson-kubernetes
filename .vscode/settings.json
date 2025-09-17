@@ -7,7 +7,9 @@
             "file:///home/dev/handson-kubernetes/tasks/04-configmaps.yml",
             "file:///home/dev/handson-kubernetes/tasks/05-secrets.yml",
             "file:///home/dev/handson-kubernetes/tasks/06-volumes.yml",
-            "file:///home/dev/handson-kubernetes/tasks/07-networking.yml"
+            "file:///home/dev/handson-kubernetes/tasks/07-networking.yml",
+            "file:///home/dev/handson-kubernetes/tasks/08-advanced-pods.yml",
+            "file:///home/dev/handson-kubernetes/tasks/09-cluster-organization.yml"
         ]
     }
 }

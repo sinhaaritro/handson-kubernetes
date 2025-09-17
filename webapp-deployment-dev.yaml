@@ -1,0 +1,34 @@
+# webapp-deployment-dev.yaml
+# A standard Deployment manifest, with one crucial addition: the 'namespace' field.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # The name of the Deployment object.
+  name: webapp-deployment-dev
+  # --- THE CRITICAL FIELD ---
+  # This tells Kubernetes to create this Deployment inside the 'development' namespace.
+  # If this field were omitted, it would be created in the 'default' namespace.
+  namespace: development
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp-dev
+  template:
+    metadata:
+      labels:
+        app: webapp-dev
+    spec:
+      containers:
+        - name: nginx-container
+          image: nginx
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)

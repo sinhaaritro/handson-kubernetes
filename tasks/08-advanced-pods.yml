@@ -1,0 +1,59 @@
+# tasks/08-advanced-pods.yml
+# This module contains all tasks for learning about advanced Pod patterns.
+
+version: "3"
+
+tasks:
+  # --- Part 1: Init Containers ---
+
+  apply-init-backend:
+    desc: "Applies the backend service that the Init Container will wait for."
+    cmds:
+      - kubectl apply -f backend-service.yaml
+
+  apply-init-pod:
+    desc: "Applies the pod with the Init Container."
+    cmds:
+      - kubectl apply -f app-with-init-container.yaml
+
+  check-init-status:
+    desc: "Watches the pod's status to see the Init Container in action."
+    cmds:
+      - |
+        echo "--> Watching pod status. Look for 'Init:0/1' -> 'PodInitializing' -> 'Running'."
+        echo "--> This may take a few moments. Press Ctrl+C to stop."
+        kubectl get pod app-with-init-container -w
+
+  check-init-logs:
+    desc: "Checks the logs of the main container to prove it ran after the Init container."
+    cmds:
+      - kubectl logs app-with-init-container -c main-app-container
+
+  cleanup-init:
+    desc: "Deletes all resources for the Init Container lesson."
+    cmds:
+      - kubectl delete pod app-with-init-container --ignore-not-found=true
+      - kubectl delete service backend-service --ignore-not-found=true
+      - kubectl delete deployment backend-service-deployment --ignore-not-found=true
+
+  # --- Part 2: Sidecar Containers ---
+
+  apply-sidecar-pod:
+    desc: "Applies the pod with a main container and a log-shipper sidecar."
+    cmds:
+      - kubectl apply -f app-with-sidecar.yaml
+
+  check-sidecar-logs:
+    desc: "Follows the logs of the sidecar to see it reading from the shared volume."
+    cmds:
+      - |
+        echo "--> Watching logs from the 'log-shipper-sidecar'."
+        echo "--> You should see a new log entry appear every 5 seconds."
+        echo "--> This data is being written by the 'main-app-container'."
+        echo "--> Press Ctrl+C to stop."
+        kubectl logs -f app-with-sidecar -c log-shipper-sidecar
+
+  cleanup-sidecar:
+    desc: "Deletes the pod for the Sidecar lesson."
+    cmds:
+      - kubectl delete pod app-with-sidecar --ignore-not-found=true

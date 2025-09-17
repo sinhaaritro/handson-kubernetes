@@ -1,0 +1,43 @@
+# backend-service.yaml
+# This file creates the backend "service" that our Init Container will wait for.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-service
+  template:
+    metadata:
+      labels:
+        # The service will use this label to find the pod.
+        app: backend-service
+    spec:
+      containers:
+        - name: backend-container
+          image: nginx
+
+          resources:
+            # 'requests' are the minimum resources the Pod needs to be scheduled.
+            requests:
+              memory: "64Mi" # 64 Mebibytes of memory
+              cpu: "250m" # 250 millicores (one quarter of a CPU core)
+            # 'limits' are the maximum resources the container is allowed to use.
+            limits:
+              memory: "128Mi" # 128 Mebibytes of memory
+              cpu: "500m" # 500 millicores (half of a CPU core)
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    # This selector must match the pod's label.
+    app: backend-service
+  ports:
+    - port: 80
