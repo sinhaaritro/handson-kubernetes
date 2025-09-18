@@ -1,0 +1,24 @@
+# pod-without-toleration.yaml
+# This is a standard Pod with no special scheduling fields.
+# It will be repelled by any node that has a 'NoSchedule' taint.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-without-toleration
+spec:
+  containers:
+    - name: alpine-container
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      command: ["sleep", "3600"]

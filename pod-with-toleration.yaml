@@ -1,0 +1,35 @@
+# pod-with-toleration.yaml
+# This Pod has a 'toleration' that matches the 'taint' we will place on a node.
+# This allows the scheduler to consider placing this Pod on the tainted node.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-toleration
+spec:
+  containers:
+    - name: alpine-container
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      command: ["sleep", "3600"]
+
+  # --- THE TOLERATION BLOCK ---
+  # This section gives the Pod the ability to "tolerate" a node's taint.
+  tolerations:
+    # This is our specific toleration. It must match the taint's key, value, and effect.
+    - key: "app"
+      # 'Equal' is the default operator, meaning the key and value must be an exact match.
+      operator: "Equal"
+      value: "gpu"
+      # 'NoSchedule' means the Pod is allowed to be scheduled, but it's not guaranteed.
+      effect: "NoSchedule"

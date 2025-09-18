@@ -1,0 +1,39 @@
+# pod-with-toleration-and-selector.yaml
+# This Pod demonstrates the most robust pattern for dedicated nodes.
+# 1. The 'nodeSelector' forces it to ONLY consider 'kind-worker'.
+# 2. The 'toleration' allows it to be scheduled there, even with the taint.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-toleration-and-selector
+spec:
+  # --- STEP 1: FORCE THE POD TO A SPECIFIC NODE ---
+  nodeSelector:
+    # We select for the label we created in the previous exercise.
+    disktype: ssd
+    # AND we select for the specific hostname to guarantee it lands on our tainted node.
+    kubernetes.io/hostname: kind-worker
+
+  # --- STEP 2: ALLOW THE POD TO IGNORE THE TAINT ON THAT NODE ---
+  tolerations:
+    - key: "app"
+      operator: "Equal"
+      value: "gpu"
+      effect: "NoSchedule"
+
+  containers:
+    - name: alpine-container
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      command: ["sleep", "3600"]

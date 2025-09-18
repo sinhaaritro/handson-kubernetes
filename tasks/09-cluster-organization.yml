@@ -48,3 +48,105 @@ tasks:
     cmds:
       # Deleting a namespace automatically deletes all the resources (Deployments, Pods, etc.) inside it.
       - kubectl delete namespace development testing --ignore-not-found=true
+
+  # --- Part 2: Nodes and Labels ---
+
+  check-node-labels-before:
+    desc: "Shows the current labels on all nodes in the cluster."
+    cmds:
+      - kubectl get nodes --show-labels
+
+  label-worker-nodes:
+    desc: "Adds the label 'disktype=ssd' to the 'kind-worker' node."
+    cmds:
+      # This command requires the node name. For a default multi-node Kind cluster,
+      # We label the first worker node.
+      - kubectl label node kind-worker disktype=ssd --overwrite
+      # We also label the second worker node.
+      - kubectl label node kind-worker2 disktype=ssd --overwrite
+
+  apply-pod-nodeselector:
+    desc: "Creates the pod that has a nodeSelector requiring 'disktype=ssd'."
+    cmds:
+      - kubectl apply -f pod-with-nodeselector.yaml
+
+  check-pod-location:
+    desc: "Checks which node the pod was scheduled on. Look for 'kind-worker'."
+    cmds:
+      # The '-o wide' flag adds the 'NODE' column to the output.
+      - kubectl get pod pod-with-nodeselector -o wide
+
+  cleanup-nodelabels:
+    desc: "Deletes the pod and removes the 'disktype' label from the node."
+    cmds:
+      - kubectl delete pod pod-with-nodeselector --ignore-not-found=true
+      # We remove the label from both nodes to clean up properly.
+      # The trailing hyphen (-) after the label key removes the label.
+      - kubectl label node kind-worker disktype-
+      - kubectl label node kind-worker2 disktype-
+
+  # --- Part 3: Taints and Tolerations ---
+
+  setup-taint-environment:
+    desc: "Prepares the environment by tainting one node and labeling it."
+    cmds:
+      # First, ensure only 'kind-worker' has the 'ssd' label for this test.
+      - kubectl label node kind-worker2 disktype- --overwrite
+      - kubectl label node kind-worker disktype=ssd --overwrite
+      # Now, apply the taint to 'kind-worker'.
+      - kubectl taint nodes kind-worker app=gpu:NoSchedule --overwrite
+
+  check-node-taints:
+    desc: "Checks and displays the taints on all nodes in the cluster."
+    cmds:
+      - |
+        echo "--> Displaying Taints for all nodes..."
+        # This command gets the name of each node and then describes it,
+        # filtering for the 'Taints:' line to give a clean output.
+        for node in $(kubectl get nodes -o name); do
+          echo -n "$node: "
+          kubectl describe $node | grep 'Taints:' | awk '{$1=$1};1'
+        done
+
+  apply-pod-without-toleration:
+    desc: "Creates the pod that does NOT have a toleration."
+    cmds:
+      - kubectl apply -f pod-without-toleration.yaml
+
+  check-repelled-pod-location:
+    desc: "Verifies the pod without a toleration was repelled from the tainted node."
+    cmds:
+      - |
+        echo "--> This pod should be scheduled on the 'clean' node: 'kind-worker2'."
+        kubectl get pod pod-without-toleration -o wide
+
+  apply-pod-with-toleration:
+    desc: "Creates the pod that HAS a toleration for the taint."
+    cmds:
+      - kubectl apply -f pod-with-toleration.yaml
+
+  check-allowed-pod-location:
+    desc: "Verifies the pod with a toleration can be scheduled on either worker node."
+    cmds:
+      - |
+        echo "--> This pod is now allowed on the tainted node ('kind-worker'), but could also land on 'kind-worker2'."
+        kubectl get pod pod-with-toleration -o wide
+
+  apply-pod-forced:
+    desc: "Creates the pod with both a toleration and a nodeSelector."
+    cmds:
+      - kubectl apply -f pod-with-toleration-and-selector.yaml
+
+  check-forced-pod-location:
+    desc: "Verifies the pod was forced onto the specific tainted node."
+    cmds:
+      - |
+        echo "--> This pod MUST be scheduled on the tainted node: 'kind-worker'."
+        kubectl get pod pod-with-toleration-and-selector -o wide
+
+  cleanup-taint:
+    desc: "Deletes all pods and removes the taint and label."
+    cmds:
+      - kubectl delete pod pod-without-toleration pod-with-toleration pod-with-toleration-and-selector --ignore-not-found=true
+      - kubectl taint nodes kind-worker app:NoSchedule-
+      - kubectl label node kind-worker disktype-

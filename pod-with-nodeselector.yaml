@@ -1,0 +1,34 @@
+# pod-with-nodeselector.yaml
+#
+# --- GOAL ---
+# This manifest demonstrates a 'nodeSelector'. This is the simplest way to
+# constrain a Pod to only be scheduled on Nodes that have a specific label.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-nodeselector
+spec:
+  # --- THE CRITICAL FIELD ---
+  # 'nodeSelector' is a map of key-value pairs.
+  # The Kubernetes scheduler will only place this Pod on a Node that has
+  # ALL of the labels defined in this selector.
+  nodeSelector:
+    # We are demanding a node that has the label 'disktype' with the value 'ssd'.
+    disktype: ssd
+
+  containers:
+    - name: nodeselector-container
+      image: alpine
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      command: ["sleep", "3600"]

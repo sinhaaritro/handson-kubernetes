@@ -46,7 +46,7 @@ nodes:
       #   protocol: TCP
 
   # This is our second node, a dedicated worker.
-  # - role: worker
+  - role: worker
 
   # This is our third node, another dedicated worker.
-  # - role: worker
+  - role: worker
