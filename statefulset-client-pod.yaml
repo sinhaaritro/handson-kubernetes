@@ -1,0 +1,30 @@
+# statefulset-client-pod.yaml
+#
+# --- GOAL ---
+# This manifest creates a dedicated "client" Pod for the StatefulSet lesson.
+# Its only purpose is to provide a shell with networking tools (like curl)
+# inside the cluster, so we can test the unique DNS names of our stateful pods.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  # A unique name for this lesson's client pod.
+  name: sts-client-pod
+spec:
+  containers:
+    - name: client-container
+      # We use 'nicolaka/netshoot' as it contains all the networking tools we need.
+      image: nicolaka/netshoot
+
+      resources:
+        # 'requests' are the minimum resources the Pod needs to be scheduled.
+        requests:
+          memory: "64Mi" # 64 Mebibytes of memory
+          cpu: "250m" # 250 millicores (one quarter of a CPU core)
+        # 'limits' are the maximum resources the container is allowed to use.
+        limits:
+          memory: "128Mi" # 128 Mebibytes of memory
+          cpu: "500m" # 500 millicores (half of a CPU core)
+
+      # This command keeps the container running so we can 'exec' into it.
+      command: ["sleep", "3600"]

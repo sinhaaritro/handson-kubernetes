@@ -1,0 +1,22 @@
+# database-headless-service.yaml
+#
+# --- GOAL ---
+# This manifest creates a "Headless" Service. This is a mandatory prerequisite
+# for a StatefulSet. It does not load balance. Instead, its job is to provide
+# the unique, stable DNS names for each Pod in the StatefulSet.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-headless-service
+spec:
+  # --- THE KEY DIFFERENCE ---
+  # 'clusterIP: None' is what makes a Service "headless".
+  # It will not have a single, stable ClusterIP.
+  clusterIP: None
+  # The selector must match the labels on the StatefulSet's Pods.
+  selector:
+    app: database
+  ports:
+    - port: 80
+      name: http # The port name is required for headless services.

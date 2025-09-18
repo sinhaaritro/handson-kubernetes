@@ -9,7 +9,8 @@
             "file:///home/dev/handson-kubernetes/tasks/06-volumes.yml",
             "file:///home/dev/handson-kubernetes/tasks/07-networking.yml",
             "file:///home/dev/handson-kubernetes/tasks/08-advanced-pods.yml",
-            "file:///home/dev/handson-kubernetes/tasks/09-cluster-organization.yml"
+            "file:///home/dev/handson-kubernetes/tasks/09-cluster-organization.yml",
+            "file:///home/dev/handson-kubernetes/tasks/10-specialized-workloads.yml"
         ]
     }
 }

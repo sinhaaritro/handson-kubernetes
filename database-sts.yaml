@@ -1,0 +1,60 @@
+# database-sts.yaml
+#
+# --- GOAL ---
+# This manifest defines a StatefulSet, a controller for stateful applications.
+# It provides stable network IDs and stable, unique storage for each replica.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database-sts
+spec:
+  # The serviceName must match the name of the Headless Service.
+  # This links the StatefulSet to its DNS provider.
+  serviceName: "database-headless-service"
+  # We will create 2 replicas.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: database
+  # The Pod template.
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+        - name: nginx-container
+          image: nginx
+          ports:
+            - containerPort: 80
+          # This command runs when the container starts. It gets its own unique
+          # hostname (e.g., 'database-sts-0') and writes it to the index.html
+          # file, which is stored on its own persistent volume.
+          command:
+            [
+              "/bin/sh",
+              "-c",
+              'echo "I am $(hostname)" > /usr/share/nginx/html/index.html && nginx -g ''daemon off;''',
+            ]
+          # We mount the persistent storage into the container.
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+
+  # --- THE STORAGE BLUEPRINT ---
+  # 'volumeClaimTemplates' is a blueprint for creating PersistentVolumeClaims.
+  # The StatefulSet controller will create a new, unique PVC for each Pod replica.
+  volumeClaimTemplates:
+    - metadata:
+        # The name of the PVC will be a combination of this name and the Pod's name.
+        # e.g., 'data-database-sts-0'
+        name: data
+      spec:
+        # We use the 'standard' StorageClass provided by Kind for dynamic provisioning.
+        storageClassName: standard
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            # Each Pod will get its own 1Gi volume.
+            storage: 1Gi

@@ -1,0 +1,66 @@
+# node-agent-ds.yaml
+#
+# --- GOAL ---
+# This manifest defines a DaemonSet, a controller whose job is to ensure that
+# a copy of its Pod runs on a specific set of Nodes in a cluster.
+# This one is configured to only run on nodes with the label 'agent=enabled'.
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-agent-ds
+spec:
+  # --- The Controller's Selector ---
+  # This selector is used by the DaemonSet controller itself to find and manage
+  # the Pods that it is responsible for. It MUST match the labels defined in the
+  # '.spec.template.metadata.labels' section below.
+  selector:
+    matchLabels:
+      app: node-agent
+
+  # --- The Pod Blueprint ---
+  # The 'template' field is a complete blueprint for the Pods that the
+  # DaemonSet will create and manage.
+  template:
+    metadata:
+      # These are the labels that will be applied to every Pod created by this DaemonSet.
+      # They must match the 'spec.selector' above.
+      labels:
+        app: node-agent
+
+    # This is the specification for the Pods themselves.
+    spec:
+      # --- THE CRITICAL SCHEDULING RULE ---
+      # 'nodeSelector' is a rule for the Pods. It tells the Kubernetes scheduler
+      # that these Pods can ONLY be scheduled on Nodes that have a matching label.
+      # The DaemonSet controller uses this rule to decide which nodes to target.
+      nodeSelector:
+        agent: enabled
+
+      # This toleration is good practice. It allows this DaemonSet to also run on the
+      # control-plane node, but ONLY IF that node is given the 'agent: enabled' label.
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      containers:
+        - name: agent-container
+          image: alpine
+          # This command uses the Downward API to get the name of the Node the Pod is
+          # running on, prints it, and then sleeps to keep the container alive.
+          command:
+            [
+              "/bin/sh",
+              "-c",
+              'echo "Node Agent running on: $(NODE_NAME)"; sleep 3600',
+            ]
+          env:
+            # The Downward API exposes Kubernetes metadata to the container.
+            - name: NODE_NAME
+              valueFrom:
+                # We are sourcing this value from a field on the Pod's own specification.
+                fieldRef:
+                  # 'spec.nodeName' is the field that contains the name of the Node
+                  # the Pod has been scheduled to.
+                  fieldPath: spec.nodeName

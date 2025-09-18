@@ -1,0 +1,125 @@
+# tasks/10-specialized-workloads.yml
+# This module contains all tasks for learning about specialized workload controllers.
+
+version: "3"
+
+tasks:
+  # --- Part 1: DaemonSets ---
+
+  check-nodes:
+    desc: "Checks the status of all nodes in the cluster."
+    cmds:
+      - kubectl get nodes
+
+  check-node-labels:
+    desc: "Shows the current labels on all worker nodes."
+    cmds:
+      - |
+        echo "--> Showing labels for 'kind-worker':"
+        # The 'jsonpath' output is a clean way to see just the labels.
+        kubectl get node kind-worker -o jsonpath='{.metadata.labels}' | jq .
+        echo ""
+        echo "--> Showing labels for 'kind-worker2':"
+        kubectl get node kind-worker2 -o jsonpath='{.metadata.labels}' | jq .
+
+  describe-daemonset:
+    desc: "Shows detailed information and events for the DaemonSet controller."
+    cmds:
+      - kubectl describe daemonset node-agent-ds
+
+  apply-daemonset:
+    desc: "Applies the node-agent DaemonSet."
+    cmds:
+      - kubectl apply -f node-agent-ds.yaml
+
+  check-daemonset-initial:
+    desc: "Checks the DaemonSet pods. None should be running yet."
+    cmds:
+      - |
+        echo "--> No pods should be running, as no nodes have the 'agent=enabled' label."
+        kubectl get pods -l app=node-agent -o wide
+
+  enable-agent-on-worker1:
+    desc: "Adds the 'agent=enabled' label to 'kind-worker' to trigger the DaemonSet."
+    cmds:
+      - kubectl label node kind-worker agent=enabled
+      - |
+        echo "--> Watching for the new pod to be created on 'kind-worker'..."
+        kubectl get pods -l app=node-agent -o wide -w
+
+  disable-agent-on-worker1:
+    desc: "Removes the 'agent=enabled' label, which should terminate the pod."
+    cmds:
+      - kubectl label node kind-worker agent-
+      - |
+        echo "--> Watching for the pod on 'kind-worker' to be terminated..."
+        kubectl get pods -l app=node-agent -o wide -w
+
+  cleanup-daemonset:
+    desc: "Deletes the DaemonSet and cleans up node labels."
+    cmds:
+      - kubectl delete daemonset node-agent-ds --ignore-not-found=true
+      - kubectl label node kind-worker agent-
+
+  # --- Part 2: StatefulSets ---
+
+  setup-statefulset-test-env:
+    desc: "Applies the StatefulSet, its Service, and a dedicated client pod for testing."
+    deps:
+      - apply-statefulset
+      - apply-sts-client-pod
+
+  apply-statefulset:
+    desc: "Applies the Headless Service and the StatefulSet."
+    cmds:
+      - kubectl apply -f database-headless-service.yaml
+      - kubectl apply -f database-sts.yaml
+
+  apply-sts-client-pod:
+    desc: "Applies the statefulset-client-pod and waits for it to be ready."
+    cmds:
+      - kubectl apply -f statefulset-client-pod.yaml
+      - |
+        echo "--> Waiting for sts-client-pod to become ready..."
+        kubectl wait --for=condition=ready pod/sts-client-pod --timeout=120s
+
+  check-statefulset-creation:
+    desc: "Watches the ordered creation of the StatefulSet pods and their PVCs."
+    cmds:
+      - echo "--> Watching Pods. Notice 'database-sts-0' is created before 'database-sts-1'."
+      - kubectl get pods -l app=database -w
+      - echo "--> Checking the PersistentVolumeClaims created by the StatefulSet:"
+      - kubectl get pvc -l app=database
+
+  test-statefulset-network:
+    desc: "Tests the unique, stable DNS names for each StatefulSet pod."
+    cmds:
+      - |
+        echo "--> Testing connection to the first replica: database-sts-0"
+        kubectl exec sts-client-pod -- curl database-sts-0.database-headless-service
+        echo ""
+        echo "--> Testing connection to the second replica: database-sts-1"
+        kubectl exec sts-client-pod -- curl database-sts-1.database-headless-service
+
+  test-statefulset-storage:
+    desc: "Demonstrates stable storage by deleting and recreating a pod."
+    cmds:
+      - |
+        echo "--> The content of pod 'database-sts-0' is:"
+        kubectl exec sts-client-pod -- curl database-sts-0.database-headless-service
+        echo ""
+        echo "--> Deleting pod 'database-sts-0'..."
+        kubectl delete pod database-sts-0
+        echo "--> Waiting for the StatefulSet to recreate the pod..."
+        kubectl wait --for=condition=ready pod/database-sts-0 --timeout=120s
+        echo "--> The recreated pod 'database-sts-0' is now ready."
+        echo "--> Its content is:"
+        kubectl exec sts-client-pod -- curl database-sts-0.database-headless-service
+
+  cleanup-statefulset:
+    desc: "Deletes the StatefulSet, Service, PVCs, and the client pod."
+    cmds:
+      - kubectl delete pod sts-client-pod --ignore-not-found=true
+      - kubectl delete statefulset database-sts --ignore-not-found=true
+      - kubectl delete service database-headless-service --ignore-not-found=true
+      - kubectl delete pvc -l app=database --ignore-not-found=true
